@@ -359,10 +359,9 @@ prepare_error_response(NKSN_Instance session, int error)
 
 static int
 prepare_response(NKSN_Instance session, int next_protocol, int aead_algorithm,
-                 int compliant_128gcm)
+                 int compliant_128gcm, int have_keys, NKE_Context *context)
 {
   SIV_Algorithm exporter_algorithm;
-  NKE_Context context;
   NKE_Cookie cookie;
   char *ntp_server;
   uint16_t datum;
@@ -408,7 +407,7 @@ prepare_response(NKSN_Instance session, int next_protocol, int aead_algorithm,
         return 0;
     }
 
-    context.algorithm = aead_algorithm;
+    context->algorithm = aead_algorithm;
     exporter_algorithm = aead_algorithm;
 
     /* With AES-128-GCM-SIV, set the algorithm ID in the RFC5705 key exporter
@@ -417,12 +416,12 @@ prepare_response(NKSN_Instance session, int next_protocol, int aead_algorithm,
     if (exporter_algorithm == AEAD_AES_128_GCM_SIV && !compliant_128gcm)
       exporter_algorithm = AEAD_AES_SIV_CMAC_256;
 
-    if (!NKSN_GetKeys(session, aead_algorithm, exporter_algorithm,
-                      NKE_NEXT_PROTOCOL_NTPV4, &context.c2s, &context.s2c))
+    if (!have_keys && !NKSN_GetKeys(session, aead_algorithm, exporter_algorithm,
+                      NKE_NEXT_PROTOCOL_NTPV4, &context->c2s, &context->s2c))
       return 0;
 
     for (i = 0; i < NKE_MAX_COOKIES; i++) {
-      if (!NKS_GenerateCookie(&context, &cookie))
+      if (!NKS_GenerateCookie(context, &cookie))
         return 0;
       if (!NKSN_AddRecord(session, 0, NKE_RECORD_COOKIE, cookie.cookie, cookie.length))
         return 0;
@@ -444,7 +443,8 @@ process_request(NKSN_Instance session)
   int next_protocol_values = 0, aead_algorithm_values = 0;
   int next_protocol = -1, aead_algorithm = -1, error = -1;
   int i, j, critical, type, length;
-  int compliant_128gcm = 0;
+  int compliant_128gcm = 0, have_fixed_key_record = 0;
+  NKE_Context context;
   uint16_t data[NKE_MAX_RECORD_BODY_LENGTH / sizeof (uint16_t)];
 
   assert(NKE_MAX_RECORD_BODY_LENGTH % sizeof (uint16_t) == 0);
@@ -455,6 +455,20 @@ process_request(NKSN_Instance session)
       break;
 
     switch (type) {
+      case NKE_RECORD_FIXED_KEY:
+        if (!critical || length % 2 != 0 || length < 2 || length > 2 * NKE_MAX_KEY_LENGTH ||
+            have_fixed_key_record) {
+          error = NKE_ERROR_BAD_REQUEST;
+          break;
+        }
+
+        have_fixed_key_record = 1;
+
+        memcpy(context.c2s.key, data, length / 2);
+        context.c2s.length = length / 2;
+        memcpy(context.s2c.key, ((uint8_t*) data) + length / 2, length / 2);
+        context.s2c.length = length / 2;
+        break;
       case NKE_RECORD_NEXT_PROTOCOL:
         if (!critical || length < 2 || length % 2 != 0 || have_next_protocol_record) {
           error = NKE_ERROR_BAD_REQUEST;
@@ -510,13 +524,21 @@ process_request(NKSN_Instance session)
         (next_protocol == NKE_NEXT_PROTOCOL_NTPV4 &&
          (!have_aead_algorithm_record || aead_algorithm_values < 1)))
       error = NKE_ERROR_BAD_REQUEST;
+
+    if (have_fixed_key_record) {
+      if (SIV_GetKeyLength(aead_algorithm) != context.c2s.length ||
+          SIV_GetKeyLength(aead_algorithm) != context.s2c.length ||
+          aead_algorithm_values != 1 || next_protocol_values != 1)
+        error = NKE_ERROR_BAD_REQUEST;
+    }
   }
 
   if (error >= 0) {
     if (!prepare_error_response(session, error))
       return 0;
   } else {
-    if (!prepare_response(session, next_protocol, aead_algorithm, compliant_128gcm))
+    if (!prepare_response(session, next_protocol, aead_algorithm, compliant_128gcm,
+            have_fixed_key_record, &context))
       return 0;
   }
 

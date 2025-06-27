@@ -118,6 +118,105 @@ prepare_request(NKSN_Instance session, int valid)
 }
 
 static void
+prepare_fixedkey_request(NKSN_Instance session, int valid)
+{
+  uint16_t data[32];
+  int index, length, keytype;
+
+  if (valid)
+    index = -1;
+  else
+    index = random() % 13;
+  DEBUG_LOG("index=%d", index);
+
+  NKSN_BeginMessage(session);
+
+  memset(data, 0, sizeof (data));
+  length = 2;
+  assert(sizeof (data[0]) == 2);
+
+  keytype = random() % 2 && SIV_GetKeyLength(AEAD_AES_128_GCM_SIV) > 0 ?
+                    AEAD_AES_128_GCM_SIV : AEAD_AES_SIV_CMAC_256;
+
+  if ((keytype == AEAD_AES_128_GCM_SIV) != (index == 0))
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_FIXED_KEY, data,
+      2 * SIV_GetKeyLength(AEAD_AES_128_GCM_SIV)));
+  else
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_FIXED_KEY, data,
+      2 * SIV_GetKeyLength(AEAD_AES_SIV_CMAC_256)));
+
+  if (index == 1) {
+    if (keytype == AEAD_AES_128_GCM_SIV)
+      TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_FIXED_KEY, data,
+        2 * SIV_GetKeyLength(AEAD_AES_128_GCM_SIV)));
+    else
+      TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_FIXED_KEY, data,
+        2 * SIV_GetKeyLength(AEAD_AES_SIV_CMAC_256)));
+  }
+
+  if (index != 2) {
+    memset(data, NKE_NEXT_PROTOCOL_NTPV4 + 1, sizeof (data));
+    data[0] = htons(NKE_NEXT_PROTOCOL_NTPV4);
+    if (index == 3)
+      length = 0;
+    else if (index == 4)
+      length = 3 + random() % 15 * 2;
+    else if (index == 5)
+      length = 4 + random() % 15 * 2;
+    else
+      length = 2;
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_NEXT_PROTOCOL, data, length));
+  }
+
+  if (index == 6) {
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_NEXT_PROTOCOL, data, length));
+  }
+
+  if (index != 7) {
+    memset(data, keytype + 1, sizeof(data));
+    data[0] = htons(keytype);
+    if (index == 8)
+      length = 0;
+    else if (index == 9)
+      length = 3 + random() % 15 * 2;
+    else if (index == 10)
+      length = 4 + random() % 15 * 2;
+    else
+      length = 2;
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, length));
+  }
+
+  if (index == 11)
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, length));
+
+  if (index == 12) {
+    length = random() % (sizeof (data) + 1);
+    TEST_CHECK(NKSN_AddRecord(session, 1, 2000 + random() % 1000, data, length));
+  }
+
+  if (random() % 2) {
+    const char server[] = "127.0.0.1";
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_NTPV4_SERVER_NEGOTIATION,
+                              server, sizeof (server) - 1));
+  }
+
+  if (random() % 2) {
+    data[0] = htons(123);
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_NTPV4_PORT_NEGOTIATION, data, length));
+  }
+
+  if (random() % 2)
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_COMPLIANT_128GCM_EXPORT, NULL, 0));
+
+  if (random() % 2) {
+    length = random() % (sizeof (data) + 1);
+    TEST_CHECK(NKSN_AddRecord(session, 0, 2000 + random() % 1000, data, length));
+  }
+
+  TEST_CHECK(NKSN_EndMessage(session));
+}
+
+static void
 process_response(NKSN_Instance session, int valid)
 {
   int records, errors, critical, type, length;
@@ -175,6 +274,12 @@ test_unit(void)
     process_response(session, valid);
   }
 
+  for (i = 0; i < 10000; i++) {
+    valid = random() % 2;
+    prepare_fixedkey_request(session, valid);
+    TEST_CHECK(process_request(session));
+    process_response(session, valid);
+  }
 
   for (i = 0; i < 10000; i++) {
     context.algorithm = AEAD_AES_SIV_CMAC_256;
