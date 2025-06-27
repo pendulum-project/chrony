@@ -358,6 +358,54 @@ prepare_error_response(NKSN_Instance session, int error)
 /* ================================================== */
 
 static int
+prepare_supports_response(NKSN_Instance session, int want_supported_protocols,
+                          int want_supported_algorithms)
+{
+  DEBUG_LOG("NTS KE supports response: want_supported_protocols=%d, want_supported_algorithms=%d",
+    want_supported_protocols, want_supported_algorithms);
+
+  NKSN_BeginMessage(session);
+
+  if (want_supported_protocols) {
+    uint16_t supported_protocol = NKE_NEXT_PROTOCOL_NTPV4;
+    if (!NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, &supported_protocol,
+            sizeof(supported_protocol)))
+      return 0;
+  }
+
+  if (want_supported_algorithms) {
+    /* Generate descriptions for the enabled Aeads that are actually supported */
+    ARR_Instance supported_algorithms = ARR_CreateInstance(sizeof(uint16_t[2]));
+    for (int i=0; i<ARR_GetSize(CNF_GetNtsAeads()); i++) {
+      if (SIV_GetKeyLength(*(int *)ARR_GetElement(CNF_GetNtsAeads(), i)) == 0) {
+        continue;
+      }
+
+      uint16_t description[2];
+      description[0] = htons(*(int*)ARR_GetElement(CNF_GetNtsAeads(), i));
+      description[1] = htons(SIV_GetKeyLength(*(int*)ARR_GetElement(CNF_GetNtsAeads(), i)));
+      ARR_AppendElement(supported_algorithms, description);
+    }
+
+    if (!NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_ALGORITHMS,
+            ARR_GetElements(supported_algorithms),
+            ARR_GetSize(supported_algorithms) * sizeof(uint16_t[2]))) {
+      ARR_DestroyInstance(supported_algorithms);
+      return 0;
+    }
+
+    ARR_DestroyInstance(supported_algorithms);
+  }
+
+  if (!NKSN_EndMessage(session))
+    return 0;
+
+  return 1;
+}
+
+/* ================================================== */
+
+static int
 prepare_response(NKSN_Instance session, int next_protocol, int aead_algorithm,
                  int compliant_128gcm, int have_keys, NKE_Context *context)
 {
@@ -440,10 +488,12 @@ static int
 process_request(NKSN_Instance session)
 {
   int have_next_protocol_record = 0, have_aead_algorithm_record = 0;
+  int have_supported_protocol_record = 0, have_supported_algorithm_record = 0;
   int next_protocol_values = 0, aead_algorithm_values = 0;
   int next_protocol = -1, aead_algorithm = -1, error = -1;
   int i, j, critical, type, length;
   int compliant_128gcm = 0, have_fixed_key_record = 0;
+  int is_support_request;
   NKE_Context context;
   uint16_t data[NKE_MAX_RECORD_BODY_LENGTH / sizeof (uint16_t)];
 
@@ -501,6 +551,22 @@ process_request(NKSN_Instance session)
           }
         }
         break;
+      case NKE_RECORD_SUPPORTED_PROTOCOLS:
+        if (length != 0 || have_supported_protocol_record) {
+          error = NKE_ERROR_BAD_REQUEST;
+          break;
+        }
+
+        have_supported_protocol_record = 1;
+        break;
+      case NKE_RECORD_SUPPORTED_ALGORITHMS:
+        if (length != 0 || have_supported_algorithm_record) {
+          error = NKE_ERROR_BAD_REQUEST;
+          break;
+        }
+
+        have_supported_algorithm_record = 1;
+        break;
       case NKE_RECORD_COMPLIANT_128GCM_EXPORT:
         if (length != 0) {
           error = NKE_ERROR_BAD_REQUEST;
@@ -519,22 +585,33 @@ process_request(NKSN_Instance session)
     }
   }
 
-  if (error < 0) {
-    if (!have_next_protocol_record || next_protocol_values < 1 ||
-        (next_protocol == NKE_NEXT_PROTOCOL_NTPV4 &&
-         (!have_aead_algorithm_record || aead_algorithm_values < 1)))
-      error = NKE_ERROR_BAD_REQUEST;
+  is_support_request = have_supported_algorithm_record || have_supported_protocol_record;
 
-    if (have_fixed_key_record) {
-      if (SIV_GetKeyLength(aead_algorithm) != context.c2s.length ||
-          SIV_GetKeyLength(aead_algorithm) != context.s2c.length ||
-          aead_algorithm_values != 1 || next_protocol_values != 1)
+  if (error < 0) {
+    if (is_support_request) {
+      if (have_next_protocol_record || have_aead_algorithm_record || have_fixed_key_record)
         error = NKE_ERROR_BAD_REQUEST;
+    } else {
+      if (!have_next_protocol_record || next_protocol_values < 1 ||
+          (next_protocol == NKE_NEXT_PROTOCOL_NTPV4 &&
+          (!have_aead_algorithm_record || aead_algorithm_values < 1)))
+        error = NKE_ERROR_BAD_REQUEST;
+
+      if (have_fixed_key_record) {
+        if (SIV_GetKeyLength(aead_algorithm) != context.c2s.length ||
+            SIV_GetKeyLength(aead_algorithm) != context.s2c.length ||
+            aead_algorithm_values != 1 || next_protocol_values != 1)
+          error = NKE_ERROR_BAD_REQUEST;
+      }
     }
   }
 
   if (error >= 0) {
     if (!prepare_error_response(session, error))
+      return 0;
+  } else if (is_support_request) {
+    if (!prepare_supports_response(session, have_supported_algorithm_record,
+          have_supported_protocol_record))
       return 0;
   } else {
     if (!prepare_response(session, next_protocol, aead_algorithm, compliant_128gcm,

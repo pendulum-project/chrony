@@ -51,7 +51,7 @@ prepare_request(NKSN_Instance session, int valid)
   if (valid)
     index = -1;
   else
-    index = random() % 9;
+    index = random() % 11;
   DEBUG_LOG("index=%d", index);
 
   NKSN_BeginMessage(session);
@@ -90,7 +90,13 @@ prepare_request(NKSN_Instance session, int valid)
   if (index == 7)
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, length));
 
-  if (index == 8) {
+  if (index == 8)
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
+
+  if (index == 9)
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_ALGORITHMS, NULL, 0));
+
+  if (index == 10) {
     length = random() % (sizeof (data) + 1);
     TEST_CHECK(NKSN_AddRecord(session, 1, 2000 + random() % 1000, data, length));
   }
@@ -126,7 +132,7 @@ prepare_fixedkey_request(NKSN_Instance session, int valid)
   if (valid)
     index = -1;
   else
-    index = random() % 13;
+    index = random() % 15;
   DEBUG_LOG("index=%d", index);
 
   NKSN_BeginMessage(session);
@@ -189,7 +195,13 @@ prepare_fixedkey_request(NKSN_Instance session, int valid)
   if (index == 11)
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, length));
 
-  if (index == 12) {
+  if (index == 12)
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
+
+  if (index == 13)
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
+
+  if (index == 14) {
     length = random() % (sizeof (data) + 1);
     TEST_CHECK(NKSN_AddRecord(session, 1, 2000 + random() % 1000, data, length));
   }
@@ -217,6 +229,61 @@ prepare_fixedkey_request(NKSN_Instance session, int valid)
 }
 
 static void
+prepare_support_request(NKSN_Instance session, int valid)
+{
+  uint16_t data[16];
+  int index, length;
+
+  if (valid)
+    index = -1;
+  else
+    index = random() % 5;
+  DEBUG_LOG("index=%d", index);
+
+  NKSN_BeginMessage(session);
+
+  memset(data, 0, sizeof (data));
+  length = 2;
+  assert(sizeof (data[0]) == 2);
+
+  if ((random() % 3) || (index == 0)) {
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
+    if ((random() % 2) || (index == 1))
+      TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_ALGORITHMS, NULL, 0));
+  } else {
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_ALGORITHMS, NULL, 0));
+  }
+
+  if (index == 0)
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
+
+  if (index == 1)
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_ALGORITHMS, NULL, 0));
+
+  if (index == 2) {
+    data[0] = htons(NKE_NEXT_PROTOCOL_NTPV4);
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_NEXT_PROTOCOL, data, 2));
+  }
+
+  if (index == 3) {
+    data[0] = htons(AEAD_AES_SIV_CMAC_256);
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, 2));
+  }
+
+  if (index == 4) {
+    length = random() % (sizeof (data) + 1);
+    TEST_CHECK(NKSN_AddRecord(session, 1, 2000 + random() % 1000, data, length));
+  }
+
+  if (random() % 2) {
+    length = random() % (sizeof (data) + 1);
+    TEST_CHECK(NKSN_AddRecord(session, 0, 2000 + random() % 1000, data, length));
+  }
+
+  TEST_CHECK(NKSN_EndMessage(session));
+}
+
+static void
 process_response(NKSN_Instance session, int valid)
 {
   int records, errors, critical, type, length;
@@ -230,6 +297,26 @@ process_response(NKSN_Instance session, int valid)
 
   if (valid) {
     TEST_CHECK(records >= 2);
+  } else {
+    TEST_CHECK(records == 1);
+    TEST_CHECK(errors == 1);
+  }
+}
+
+static void
+process_support_response(NKSN_Instance session, int valid)
+{
+  int records, errors, critical, type, length;
+
+  for (records = errors = 0; ; records++) {
+    if (!NKSN_GetRecord(session, &critical, &type, &length, NULL, 0))
+      break;
+    if (type == NKE_RECORD_ERROR)
+      errors++;
+  }
+
+  if (valid) {
+    TEST_CHECK(records >= 1);
   } else {
     TEST_CHECK(records == 1);
     TEST_CHECK(errors == 1);
@@ -279,6 +366,13 @@ test_unit(void)
     prepare_fixedkey_request(session, valid);
     TEST_CHECK(process_request(session));
     process_response(session, valid);
+  }
+
+  for (i = 0; i < 10000; i++) {
+    valid = random() % 2;
+    prepare_support_request(session, valid);
+    TEST_CHECK(process_request(session));
+    process_support_response(session, valid);
   }
 
   for (i = 0; i < 10000; i++) {
