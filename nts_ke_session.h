@@ -61,6 +61,10 @@ extern void NKSN_DestroyInstance(NKSN_Instance inst);
 extern int NKSN_StartSession(NKSN_Instance inst, int sock_fd, const char *label,
                              NKSN_Credentials credentials, double timeout);
 
+/* Mark a server session to be kept alive after sending the response. The
+   mark is reset after sending the next response. */
+extern void NKSN_KeepAlive(NKSN_Instance inst);
+
 /* Begin an NTS-KE message.  A request should be made right after starting
    the session and response should be made in the message handler. */
 extern void NKSN_BeginMessage(NKSN_Instance inst);

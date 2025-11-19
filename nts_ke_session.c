@@ -72,6 +72,7 @@ struct NKSN_Instance_Record {
   void *handler_arg;
 
   KeState state;
+  int keep_alive;
   int sock_fd;
   char *label;
   TLS_Instance tls_session;
@@ -358,7 +359,8 @@ handle_event(NKSN_Instance inst, int event)
         return 0;
 
       /* Client will receive a response */
-      change_state(inst, inst->server ? KE_SHUTDOWN : KE_RECEIVE);
+      change_state(inst, (inst->server && !inst->keep_alive) ? KE_SHUTDOWN : KE_RECEIVE);
+      inst->keep_alive = 0;
       reset_message(&inst->message);
       inst->new_message = 0;
       return 0;
@@ -585,6 +587,7 @@ NKSN_CreateInstance(int server_mode, const char *server_name,
     inst->handler_arg = inst;
 
   inst->state = KE_STOPPED;
+  inst->keep_alive = 0;
   inst->sock_fd = INVALID_SOCK_FD;
   inst->label = NULL;
   inst->tls_session = NULL;
@@ -624,6 +627,7 @@ NKSN_StartSession(NKSN_Instance inst, int sock_fd, const char *label,
 
   inst->label = Strdup(label);
   inst->timeout_id = SCH_AddTimeoutByDelay(timeout, session_timeout, inst);
+  inst->keep_alive = 0;
   inst->retry_factor = NKE_RETRY_FACTOR2_CONNECT;
 
   reset_message(&inst->message);
@@ -632,6 +636,15 @@ NKSN_StartSession(NKSN_Instance inst, int sock_fd, const char *label,
   change_state(inst, inst->server ? KE_HANDSHAKE : KE_WAIT_CONNECT);
 
   return 1;
+}
+
+/* ================================================== */
+void
+NKSN_KeepAlive(NKSN_Instance inst)
+{
+  inst->keep_alive = 1;
+  SCH_RemoveTimeout(inst->timeout_id);
+  inst->timeout_id = 0;
 }
 
 /* ================================================== */
