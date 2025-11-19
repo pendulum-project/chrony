@@ -102,6 +102,7 @@ static char *rtc_device;
 static int acquisition_port = -1;
 static int ntp_port = NTP_PORT;
 static char *keys_file = NULL;
+static char *nts_auth_token_file = NULL;
 static char *drift_file = NULL;
 static int drift_file_interval = 3600;
 static char *rtc_file = NULL;
@@ -515,6 +516,7 @@ CNF_Finalise(void)
   Free(dumpdir);
   Free(hwclock_file);
   Free(keys_file);
+  Free(nts_auth_token_file);
   Free(leapsec_tz);
   Free(leapsec_list);
   Free(logdir);
@@ -662,6 +664,8 @@ CNF_ParseLine(const char *filename, int number, char *line)
     parse_initstepslew(p);
   } else if (!strcasecmp(command, "keyfile")) {
     parse_string(p, &keys_file);
+  } else if (!strcasecmp(command, "ntsauthtokenfile")) {
+    parse_string(p, &nts_auth_token_file);
   } else if (!strcasecmp(command, "leapsecmode")) {
     parse_leapsecmode(p);
   } else if (!strcasecmp(command, "leapsectz")) {
@@ -2000,6 +2004,8 @@ CNF_CheckReadOnlyAccess(void)
 
   if (keys_file)
     UTI_CheckReadOnlyAccess(keys_file);
+  if (nts_auth_token_file)
+    UTI_CheckReadOnlyAccess(nts_auth_token_file);
   for (i = 0; i < ARR_GetSize(nts_server_key_files); i++)
     UTI_CheckReadOnlyAccess(*(char **)ARR_GetElement(nts_server_key_files, i));
 }
@@ -2211,6 +2217,14 @@ char *
 CNF_GetKeysFile(void)
 {
   return keys_file;
+}
+
+/* ================================================== */
+
+char *
+CNF_GetNtsAuthTokenFile(void)
+{
+  return nts_auth_token_file;
 }
 
 /* ================================================== */

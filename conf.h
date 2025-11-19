@@ -68,6 +68,7 @@ extern int CNF_GetLogRtc(void);
 extern int CNF_GetLogRefclocks(void);
 extern int CNF_GetLogTempComp(void);
 extern char *CNF_GetKeysFile(void);
+extern char *CNF_GetNtsAuthTokenFile(void);
 extern char *CNF_GetRtcFile(void);
 extern int CNF_GetManualEnabled(void);
 extern ARR_Instance CNF_GetOpenCommands(void);

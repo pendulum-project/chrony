@@ -60,6 +60,14 @@ prepare_request(NKSN_Instance session, int valid)
   length = 2;
   assert(sizeof (data[0]) == 2);
 
+  if (random() % 3) {
+    length = random() % (sizeof (data) + 1);
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, data, length));
+  }
+
+  if (random() % 3)
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, "abcd", 4));
+
   if (index != 0) {
     memset(data, NKE_NEXT_PROTOCOL_NTPV4 + 1, sizeof (data));
     data[0] = htons(NKE_NEXT_PROTOCOL_NTPV4);
@@ -120,6 +128,9 @@ prepare_request(NKSN_Instance session, int valid)
     TEST_CHECK(NKSN_AddRecord(session, 0, 2000 + random() % 1000, data, length));
   }
 
+  if (random() % 2)
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_KEEP_ALIVE, NULL, 0));
+
   TEST_CHECK(NKSN_EndMessage(session));
 }
 
@@ -140,6 +151,14 @@ prepare_fixedkey_request(NKSN_Instance session, int valid)
   memset(data, 0, sizeof (data));
   length = 2;
   assert(sizeof (data[0]) == 2);
+
+  if (random() % 3) {
+    length = random() % (sizeof (data) + 1);
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, data, length));
+  }
+
+  if (random() % 3)
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, "abcd", 4));
 
   keytype = random() % 2 && SIV_GetKeyLength(AEAD_AES_128_GCM_SIV) > 0 ?
                     AEAD_AES_128_GCM_SIV : AEAD_AES_SIV_CMAC_256;
@@ -225,6 +244,9 @@ prepare_fixedkey_request(NKSN_Instance session, int valid)
     TEST_CHECK(NKSN_AddRecord(session, 0, 2000 + random() % 1000, data, length));
   }
 
+  if (random() % 2)
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_KEEP_ALIVE, NULL, 0));
+
   TEST_CHECK(NKSN_EndMessage(session));
 }
 
@@ -245,6 +267,14 @@ prepare_support_request(NKSN_Instance session, int valid)
   memset(data, 0, sizeof (data));
   length = 2;
   assert(sizeof (data[0]) == 2);
+
+  if (random() % 3) {
+    length = random() % (sizeof (data) + 1);
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, data, length));
+  }
+
+  if (random() % 3)
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, "abcd", 4));
 
   if ((random() % 3) || (index == 0)) {
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
@@ -279,6 +309,9 @@ prepare_support_request(NKSN_Instance session, int valid)
     length = random() % (sizeof (data) + 1);
     TEST_CHECK(NKSN_AddRecord(session, 0, 2000 + random() % 1000, data, length));
   }
+
+  if (random() % 2)
+    TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_KEEP_ALIVE, NULL, 0));
 
   TEST_CHECK(NKSN_EndMessage(session));
 }
@@ -338,6 +371,7 @@ test_unit(void)
     "ntsprocesses 0",
     "ntsserverkey nts_ke.key",
     "ntsservercert nts_ke.crt",
+    "ntsauthtokenfile authtokens.txt",
   };
 
   CNF_Initialise(0, 0);

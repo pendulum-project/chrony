@@ -80,6 +80,11 @@ typedef struct {
   uint16_t _pad;
 } HelperRequest;
 
+typedef struct {
+  uint32_t len;
+  char *token;
+} AuthToken;
+
 /* ================================================== */
 
 static ServerKey server_keys[MAX_SERVER_KEYS];
@@ -92,6 +97,8 @@ static int server_sock_fd6;
 
 static int helper_sock_fd;
 static int is_helper;
+
+static ARR_Instance auth_tokens;
 
 static int initialised = 0;
 
@@ -358,8 +365,19 @@ prepare_error_response(NKSN_Instance session, int error)
 /* ================================================== */
 
 static int
+prepare_response_keepalive(NKSN_Instance session)
+{
+  DEBUG_LOG("Keeping session alive");
+  if (!NKSN_AddRecord(session, 0, NKE_RECORD_KEEP_ALIVE, NULL, 0))
+    return 0;
+  NKSN_KeepAlive(session);
+
+  return 1;
+}
+
+static int
 prepare_supports_response(NKSN_Instance session, int want_supported_protocols,
-                          int want_supported_algorithms)
+                          int want_supported_algorithms, int keep_alive)
 {
   DEBUG_LOG("NTS KE supports response: want_supported_protocols=%d, want_supported_algorithms=%d",
     want_supported_protocols, want_supported_algorithms);
@@ -397,6 +415,11 @@ prepare_supports_response(NKSN_Instance session, int want_supported_protocols,
     ARR_DestroyInstance(supported_algorithms);
   }
 
+  if (keep_alive) {
+    if (!prepare_response_keepalive(session))
+      return 0;
+  }
+
   if (!NKSN_EndMessage(session))
     return 0;
 
@@ -407,7 +430,7 @@ prepare_supports_response(NKSN_Instance session, int want_supported_protocols,
 
 static int
 prepare_response(NKSN_Instance session, int next_protocol, int aead_algorithm,
-                 int compliant_128gcm, int have_keys, NKE_Context *context)
+                 int compliant_128gcm, int have_keys, NKE_Context *context, int keep_alive)
 {
   SIV_Algorithm exporter_algorithm;
   NKE_Cookie cookie;
@@ -476,6 +499,11 @@ prepare_response(NKSN_Instance session, int next_protocol, int aead_algorithm,
     }
   }
 
+  if (have_keys && keep_alive) {
+    if (!prepare_response_keepalive(session))
+      return 0;
+  }
+
   if (!NKSN_EndMessage(session))
     return 0;
 
@@ -493,7 +521,9 @@ process_request(NKSN_Instance session)
   int next_protocol = -1, aead_algorithm = -1, error = -1;
   int i, j, critical, type, length;
   int compliant_128gcm = 0, have_fixed_key_record = 0;
+  int keep_alive = 0, is_authenticated = 0;
   int is_support_request;
+  AuthToken *token;
   NKE_Context context;
   uint16_t data[NKE_MAX_RECORD_BODY_LENGTH / sizeof (uint16_t)];
 
@@ -574,6 +604,19 @@ process_request(NKSN_Instance session)
         }
         compliant_128gcm = 1;
         break;
+      case NKE_RECORD_KEEP_ALIVE:
+        keep_alive = 1;
+        break;
+      case NKE_RECORD_AUTH_TOKEN:
+        for (i = 0; i < ARR_GetSize(auth_tokens); i++) {
+          token = (AuthToken *)ARR_GetElement(auth_tokens, i);
+          // Accept that this leaks the token length. Its length is not really secret anyway
+          if (length == token->len && UTI_IsMemoryEqual(data, token->token, length)) {
+            is_authenticated = 1;
+            break;
+          }
+        }
+        break;
       case NKE_RECORD_ERROR:
       case NKE_RECORD_WARNING:
       case NKE_RECORD_COOKIE:
@@ -611,11 +654,11 @@ process_request(NKSN_Instance session)
       return 0;
   } else if (is_support_request) {
     if (!prepare_supports_response(session, have_supported_algorithm_record,
-          have_supported_protocol_record))
+          have_supported_protocol_record, keep_alive && is_authenticated))
       return 0;
   } else {
     if (!prepare_response(session, next_protocol, aead_algorithm, compliant_128gcm,
-            have_fixed_key_record, &context))
+            have_fixed_key_record, &context, keep_alive && is_authenticated))
       return 0;
   }
 
@@ -807,6 +850,51 @@ error:
   return 0;
 }
 
+static void
+load_auth_tokens(void)
+{
+  char *nts_auth_tokens_file, line[1024], *key;
+  AuthToken *token;
+  int n_words;
+  FILE *f;
+
+  nts_auth_tokens_file = CNF_GetNtsAuthTokenFile();
+  if (!nts_auth_tokens_file)
+    return;
+
+  if (!UTI_CheckFilePermissions(nts_auth_tokens_file, 0771))
+    ;
+
+  f = UTI_OpenFile(NULL, nts_auth_tokens_file, NULL, 'r', 0);
+  if (!f) {
+    LOG(LOGS_WARN, "Could not open ntsauthtokenfile %s", nts_auth_tokens_file);
+    return;
+  }
+
+  while (fgets(line, sizeof(line), f)) {
+    if (strlen(line) == sizeof(line) && line[sizeof(line) - 2] != '\n') {
+      LOG(LOGS_ERR, "Authentication token line too long");
+      goto error;
+    }
+
+    n_words = UTI_SplitString(line, &key, 1);
+    if (n_words > 1) {
+      LOG(LOGS_ERR, "Authentication token line contained more than one key");
+      goto error;
+    }
+
+    if (n_words == 1) {
+      token = ARR_GetNewElement(auth_tokens);
+      token->len = strlen(key);
+      token->token = strdup(key);
+    }
+  }
+
+error:
+  LOG(LOGS_ERR, "Could not load all authentication tokens");
+  fclose(f);
+}
+
 /* ================================================== */
 
 static void
@@ -953,6 +1041,9 @@ NKS_Initialise(void)
   for (i = 0; i < CNF_GetNtsServerConnections(); i++)
     *(NKSN_Instance *)ARR_GetNewElement(sessions) = NULL;
 
+  auth_tokens = ARR_CreateInstance(sizeof (AuthToken));
+  load_auth_tokens();
+
   /* Generate random keys, even if they will be replaced by reloaded keys,
      or unused (in the helper) */
   for (i = 0; i < MAX_SERVER_KEYS; i++) {
@@ -1014,6 +1105,12 @@ NKS_Finalise(void)
 
   for (i = 0; i < MAX_SERVER_KEYS; i++)
     SIV_DestroyInstance(server_keys[i].siv);
+
+  for (i = 0; i < ARR_GetSize(auth_tokens); i++) {
+    AuthToken token = *(AuthToken *)ARR_GetElement(auth_tokens, i);
+    Free(token.token);
+  }
+  ARR_DestroyInstance(auth_tokens);
 
   for (i = 0; i < ARR_GetSize(sessions); i++) {
     NKSN_Instance session = *(NKSN_Instance *)ARR_GetElement(sessions, i);
