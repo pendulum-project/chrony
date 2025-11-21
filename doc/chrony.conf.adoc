@@ -1883,6 +1883,13 @@ per process that the NTS server will accept. The default value is 100. The
 maximum practical value is half of the system *FD_SETSIZE* constant (usually
 1024).
 
+[[maxntslongtermconnections]]*maxntslongtermconnections* _connections_::
+This directive specifies the maximum number of concurrent longterm NTS-KE
+connections per process that the NTS server will accept from pools. The
+default value is 5. This value should be kept smaller than *maxntsconnections*,
+otherwise clients trying to use the server may get starved from new
+connections.
+
 [[ntsaeads2]]*ntsaeads* _ID_...::
 This directive specifies a list of IDs of Authenticated Encryption with
 Associated Data (AEAD) algorithms enabled for NTS authentication of NTP

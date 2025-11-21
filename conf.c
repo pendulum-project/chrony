@@ -282,6 +282,7 @@ static ARR_Instance nts_server_key_files; /* array of (char *) */
 static int nts_server_port = NKE_PORT;
 static int nts_server_processes = 1;
 static int nts_server_connections = 100;
+static int nts_longterm_connections = 5;
 static int nts_refresh = 2419200; /* 4 weeks */
 static int nts_rotate = 604800; /* 1 week */
 static ARR_Instance nts_trusted_certs_paths; /* array of (char *) */
@@ -702,6 +703,8 @@ CNF_ParseLine(const char *filename, int number, char *line)
     parse_double(p, &max_jitter);
   } else if (!strcasecmp(command, "maxntsconnections")) {
     parse_int(p, &nts_server_connections, 1, INT_MAX);
+  } else if (!strcasecmp(command, "maxntslongtermconnections")) {
+    parse_int(p, &nts_longterm_connections, 0, INT_MAX);
   } else if (!strcasecmp(command, "maxsamples")) {
     parse_int(p, &max_samples, 0, INT_MAX);
   } else if (!strcasecmp(command, "maxslewrate")) {
@@ -2852,6 +2855,14 @@ int
 CNF_GetNtsServerConnections(void)
 {
   return nts_server_connections;
+}
+
+/* ================================================== */
+
+int
+CNF_GetNtsLongtermConnections(void)
+{
+  return nts_longterm_connections;
 }
 
 /* ================================================== */

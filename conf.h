@@ -174,6 +174,7 @@ extern int CNF_GetNtsServerCertAndKeyFiles(const char ***certs, const char ***ke
 extern int CNF_GetNtsServerPort(void);
 extern int CNF_GetNtsServerProcesses(void);
 extern int CNF_GetNtsServerConnections(void);
+extern int CNF_GetNtsLongtermConnections(void);
 extern int CNF_GetNtsRefresh(void);
 extern int CNF_GetNtsRotate(void);
 extern int CNF_GetNtsTrustedCertsPaths(const char ***paths, uint32_t **ids);

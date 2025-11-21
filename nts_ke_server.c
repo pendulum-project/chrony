@@ -102,6 +102,8 @@ static ARR_Instance auth_tokens;
 
 static int initialised = 0;
 
+static int active_longterm_connections = 0;
+
 /* Array of NKSN instances */
 static ARR_Instance sessions;
 static NKSN_Credentials server_credentials;
@@ -109,6 +111,26 @@ static NKSN_Credentials server_credentials;
 /* ================================================== */
 
 static int handle_message(void *arg);
+
+/* ================================================== */
+
+static int
+handle_longterm_stop(void *arg)
+{
+  NKSN_Instance inst = (NKSN_Instance)arg;
+
+  if (!NKSN_IsLongterm(inst))
+    return 0;
+
+  if (active_longterm_connections > 0) {
+    active_longterm_connections--;
+  } else {
+    /* This should never happen, unless something goes haywire*/
+    LOG(LOGS_ERR, "Internal error: count of active longterm connections is lower than actual number of longterm connections");
+  }
+
+  return 0;
+}
 
 /* ================================================== */
 
@@ -451,8 +473,16 @@ prepare_response(NKSN_Instance session, int error, int next_protocol, int aead_a
     }
   }
 
-  if ((have_keys || want_supported_algorithms || want_supported_protocols) &&
-        keep_alive && error < 0) {
+  if ((have_keys || want_supported_algorithms || want_supported_protocols) && keep_alive &&
+    error < 0 && (NKSN_IsLongterm(session) ||
+    CNF_GetNtsLongtermConnections() > active_longterm_connections))
+  {
+    if (!NKSN_IsLongterm(session)) {
+      active_longterm_connections++;
+      NKSN_MarkLongterm(session);
+      NKSN_SetStopHandler(session, handle_longterm_stop);
+    }
+
     DEBUG_LOG("Keeping session alive");
     if (!NKSN_AddRecord(session, 0, NKE_RECORD_KEEP_ALIVE, NULL, 0))
       return 0;
