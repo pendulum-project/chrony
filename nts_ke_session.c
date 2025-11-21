@@ -69,10 +69,12 @@ struct NKSN_Instance_Record {
   int server;
   char *server_name;
   NKSN_MessageHandler handler;
+  NKSN_MessageHandler stop_handler;
   void *handler_arg;
 
   KeState state;
   int keep_alive;
+  int is_longterm;
   int sock_fd;
   char *label;
   TLS_Instance tls_session;
@@ -211,6 +213,12 @@ stop_session(NKSN_Instance inst)
     return;
 
   inst->state = KE_STOPPED;
+
+  if (inst->stop_handler)
+    inst->stop_handler(inst->handler_arg);
+
+  inst->stop_handler = NULL;
+  inst->is_longterm = 0;
 
   SCH_RemoveFileHandler(inst->sock_fd);
   SCK_CloseSocket(inst->sock_fd);
@@ -581,6 +589,7 @@ NKSN_CreateInstance(int server_mode, const char *server_name,
   inst->server = server_mode;
   inst->server_name = server_name ? Strdup(server_name) : NULL;
   inst->handler = handler;
+  inst->stop_handler = NULL;
   inst->handler_arg = handler_arg;
   /* Replace a NULL argument with the session itself */
   if (!inst->handler_arg)
@@ -588,6 +597,7 @@ NKSN_CreateInstance(int server_mode, const char *server_name,
 
   inst->state = KE_STOPPED;
   inst->keep_alive = 0;
+  inst->is_longterm = 0;
   inst->sock_fd = INVALID_SOCK_FD;
   inst->label = NULL;
   inst->tls_session = NULL;
@@ -615,6 +625,9 @@ NKSN_StartSession(NKSN_Instance inst, int sock_fd, const char *label,
                   NKSN_Credentials credentials, double timeout)
 {
   assert(inst->state == KE_STOPPED);
+
+  inst->stop_handler = NULL;
+  inst->is_longterm = 0;
 
   inst->tls_session = TLS_CreateInstance(inst->server, sock_fd, inst->server_name,
                                          label, NKE_ALPN_NAME, credentials,
@@ -645,6 +658,21 @@ NKSN_KeepAlive(NKSN_Instance inst)
   inst->keep_alive = 1;
   SCH_RemoveTimeout(inst->timeout_id);
   inst->timeout_id = 0;
+}
+
+/* ================================================== */
+
+void
+NKSN_MarkLongterm(NKSN_Instance inst)
+{
+  inst->is_longterm = 1;
+}
+
+/* ================================================== */
+void
+NKSN_SetStopHandler(NKSN_Instance inst, NKSN_MessageHandler handler)
+{
+  inst->stop_handler = handler;
 }
 
 /* ================================================== */
@@ -761,6 +789,14 @@ int
 NKSN_IsStopped(NKSN_Instance inst)
 {
   return inst->state == KE_STOPPED;
+}
+
+/* ================================================== */
+
+int
+NKSN_IsLongterm(NKSN_Instance inst)
+{
+  return inst->is_longterm;
 }
 
 /* ================================================== */
