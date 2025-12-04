@@ -1862,10 +1862,9 @@ files must be specified in the same order.
 
 [[ntsauthtokenfile]]*ntsauthtokenfile* _file_::
 This directive specifies a file containing the authentication tokens used
-to check a pool connecting to chrony is allowed to keep its connections alive.
-The file needs to be readable by the user under which *chronyd* is running
-after dropping root privileges. For security reasons, it should not be readable
-by other users.
+to check a pool connecting to chrony is allowed to do so. The file needs to be
+readable by the user under which *chronyd* is running after dropping root
+privileges. For security reasons, it should not be readable by other users.
 +
 The file should contain one authentication token per line, and all lines
 including the last one should be ended with a newline. Emtpy lines are ignored.

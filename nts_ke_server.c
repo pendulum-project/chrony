@@ -521,7 +521,8 @@ process_request(NKSN_Instance session)
 
     switch (type) {
       case NKE_RECORD_FIXED_KEY:
-        if (!critical || length % 2 != 0 || length < 2 || length > 2 * NKE_MAX_KEY_LENGTH) {
+        if (!critical || !is_authenticated || length % 2 != 0 || length < 2 ||
+             length > 2 * NKE_MAX_KEY_LENGTH) {
           error = NKE_ERROR_BAD_REQUEST;
           break;
         }
@@ -568,7 +569,7 @@ process_request(NKSN_Instance session)
         }
         break;
       case NKE_RECORD_SUPPORTED_PROTOCOLS:
-        if (length != 0) {
+        if (length != 0 || !is_authenticated) {
           error = NKE_ERROR_BAD_REQUEST;
           break;
         }
@@ -576,7 +577,7 @@ process_request(NKSN_Instance session)
         supported_protocol_records++;
         break;
       case NKE_RECORD_SUPPORTED_ALGORITHMS:
-        if (length != 0) {
+        if (length != 0 || !is_authenticated) {
           error = NKE_ERROR_BAD_REQUEST;
           break;
         }
