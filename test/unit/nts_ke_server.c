@@ -143,7 +143,7 @@ prepare_fixedkey_request(NKSN_Instance session, int valid)
   if (valid)
     index = -1;
   else
-    index = random() % 15;
+    index = random() % 16;
   DEBUG_LOG("index=%d", index);
 
   NKSN_BeginMessage(session);
@@ -157,20 +157,20 @@ prepare_fixedkey_request(NKSN_Instance session, int valid)
     TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, data, length));
   }
 
-  if (random() % 3)
+  if (index != 0)
     TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, "abcd", 4));
 
   keytype = random() % 2 && SIV_GetKeyLength(AEAD_AES_128_GCM_SIV) > 0 ?
                     AEAD_AES_128_GCM_SIV : AEAD_AES_SIV_CMAC_256;
 
-  if ((keytype == AEAD_AES_128_GCM_SIV) != (index == 0))
+  if ((keytype == AEAD_AES_128_GCM_SIV) != (index == 1))
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_FIXED_KEY, data,
       2 * SIV_GetKeyLength(AEAD_AES_128_GCM_SIV)));
   else
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_FIXED_KEY, data,
       2 * SIV_GetKeyLength(AEAD_AES_SIV_CMAC_256)));
 
-  if (index == 1) {
+  if (index == 2) {
     if (keytype == AEAD_AES_128_GCM_SIV)
       TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_FIXED_KEY, data,
         2 * SIV_GetKeyLength(AEAD_AES_128_GCM_SIV)));
@@ -179,48 +179,48 @@ prepare_fixedkey_request(NKSN_Instance session, int valid)
         2 * SIV_GetKeyLength(AEAD_AES_SIV_CMAC_256)));
   }
 
-  if (index != 2) {
+  if (index != 3) {
     memset(data, NKE_NEXT_PROTOCOL_NTPV4 + 1, sizeof (data));
     data[0] = htons(NKE_NEXT_PROTOCOL_NTPV4);
-    if (index == 3)
+    if (index == 4)
       length = 0;
-    else if (index == 4)
-      length = 3 + random() % 15 * 2;
     else if (index == 5)
+      length = 3 + random() % 15 * 2;
+    else if (index == 6)
       length = 4 + random() % 15 * 2;
     else
       length = 2;
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_NEXT_PROTOCOL, data, length));
   }
 
-  if (index == 6) {
+  if (index == 7) {
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_NEXT_PROTOCOL, data, length));
   }
 
-  if (index != 7) {
+  if (index != 8) {
     memset(data, keytype + 1, sizeof(data));
     data[0] = htons(keytype);
-    if (index == 8)
+    if (index == 9)
       length = 0;
-    else if (index == 9)
-      length = 3 + random() % 15 * 2;
     else if (index == 10)
+      length = 3 + random() % 15 * 2;
+    else if (index == 11)
       length = 4 + random() % 15 * 2;
     else
       length = 2;
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, length));
   }
 
-  if (index == 11)
-    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, length));
-
   if (index == 12)
-    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, length));
 
   if (index == 13)
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
 
-  if (index == 14) {
+  if (index == 14)
+    TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
+
+  if (index == 15) {
     length = random() % (sizeof (data) + 1);
     TEST_CHECK(NKSN_AddRecord(session, 1, 2000 + random() % 1000, data, length));
   }
@@ -259,7 +259,7 @@ prepare_support_request(NKSN_Instance session, int valid)
   if (valid)
     index = -1;
   else
-    index = random() % 5;
+    index = random() % 6;
   DEBUG_LOG("index=%d", index);
 
   NKSN_BeginMessage(session);
@@ -273,34 +273,34 @@ prepare_support_request(NKSN_Instance session, int valid)
     TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, data, length));
   }
 
-  if (random() % 3)
+  if (index != 0)
     TEST_CHECK(NKSN_AddRecord(session, 0, NKE_RECORD_AUTH_TOKEN, "abcd", 4));
 
-  if ((random() % 3) || (index == 0)) {
+  if ((random() % 3) || (index == 1)) {
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
-    if ((random() % 2) || (index == 1))
+    if ((random() % 2) || (index == 2))
       TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_ALGORITHMS, NULL, 0));
   } else {
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_ALGORITHMS, NULL, 0));
   }
 
-  if (index == 0)
+  if (index == 1)
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_PROTOCOLS, NULL, 0));
 
-  if (index == 1)
+  if (index == 2)
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_SUPPORTED_ALGORITHMS, NULL, 0));
 
-  if (index == 2) {
+  if (index == 3) {
     data[0] = htons(NKE_NEXT_PROTOCOL_NTPV4);
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_NEXT_PROTOCOL, data, 2));
   }
 
-  if (index == 3) {
+  if (index == 4) {
     data[0] = htons(AEAD_AES_SIV_CMAC_256);
     TEST_CHECK(NKSN_AddRecord(session, 1, NKE_RECORD_AEAD_ALGORITHM, data, 2));
   }
 
-  if (index == 4) {
+  if (index == 5) {
     length = random() % (sizeof (data) + 1);
     TEST_CHECK(NKSN_AddRecord(session, 1, 2000 + random() % 1000, data, length));
   }

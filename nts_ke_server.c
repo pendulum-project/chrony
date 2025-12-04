@@ -567,8 +567,8 @@ process_request(NKSN_Instance session)
 
     switch (type) {
       case NKE_RECORD_FIXED_KEY:
-        if (!critical || length % 2 != 0 || length < 2 || length > 2 * NKE_MAX_KEY_LENGTH ||
-            have_fixed_key_record) {
+        if (!critical || !is_authenticated || length % 2 != 0 || length < 2 ||
+            length > 2 * NKE_MAX_KEY_LENGTH || have_fixed_key_record) {
           error = NKE_ERROR_BAD_REQUEST;
           break;
         }
@@ -613,7 +613,7 @@ process_request(NKSN_Instance session)
         }
         break;
       case NKE_RECORD_SUPPORTED_PROTOCOLS:
-        if (length != 0 || have_supported_protocol_record) {
+        if (length != 0 || !is_authenticated || have_supported_protocol_record) {
           error = NKE_ERROR_BAD_REQUEST;
           break;
         }
@@ -621,7 +621,7 @@ process_request(NKSN_Instance session)
         have_supported_protocol_record = 1;
         break;
       case NKE_RECORD_SUPPORTED_ALGORITHMS:
-        if (length != 0 || have_supported_algorithm_record) {
+        if (length != 0 || !is_authenticated || have_supported_algorithm_record) {
           error = NKE_ERROR_BAD_REQUEST;
           break;
         }
@@ -902,8 +902,9 @@ load_auth_tokens(void)
     return;
   }
 
-  while (fgets(line, sizeof(line), f)) {
-    if (strlen(line) == sizeof(line) && line[sizeof(line) - 2] != '\n') {
+  line[sizeof (line) - 2] = '\0';
+  while (fgets(line, sizeof (line), f)) {
+    if (line[sizeof (line) - 2] != '\n' && line[sizeof (line) - 2] != '\0') {
       LOG(LOGS_ERR, "Authentication token line too long");
       goto error;
     }
