@@ -337,7 +337,28 @@ helper_signal(int x)
 /* ================================================== */
 
 static int
-prepare_response(NKSN_Instance session, int error, int next_protocol, int aead_algorithm,
+prepare_error_response(NKSN_Instance session, int error)
+{
+  uint16_t datum;
+
+  DEBUG_LOG("NTS KE error response: error=%d", error);
+
+  NKSN_BeginMessage(session);
+
+  datum = htons(error);
+  if (!NKSN_AddRecord(session, 1, NKE_RECORD_ERROR, &datum, sizeof (datum)))
+    return 0;
+
+  if (!NKSN_EndMessage(session))
+    return 0;
+
+  return 1;
+}
+
+/* ================================================== */
+
+static int
+prepare_response(NKSN_Instance session, int next_protocol, int aead_algorithm,
                  int compliant_128gcm)
 {
   SIV_Algorithm exporter_algorithm;
@@ -347,15 +368,11 @@ prepare_response(NKSN_Instance session, int error, int next_protocol, int aead_a
   uint16_t datum;
   int i;
 
-  DEBUG_LOG("NTS KE response: error=%d next=%d aead=%d", error, next_protocol, aead_algorithm);
+  DEBUG_LOG("NTS KE response: next=%d aead=%d", next_protocol, aead_algorithm);
 
   NKSN_BeginMessage(session);
 
-  if (error >= 0) {
-    datum = htons(error);
-    if (!NKSN_AddRecord(session, 1, NKE_RECORD_ERROR, &datum, sizeof (datum)))
-      return 0;
-  } else if (next_protocol < 0) {
+  if (next_protocol < 0) {
     if (!NKSN_AddRecord(session, 1, NKE_RECORD_NEXT_PROTOCOL, NULL, 0))
       return 0;
   } else if (aead_algorithm < 0) {
@@ -495,8 +512,13 @@ process_request(NKSN_Instance session)
       error = NKE_ERROR_BAD_REQUEST;
   }
 
-  if (!prepare_response(session, error, next_protocol, aead_algorithm, compliant_128gcm))
-    return 0;
+  if (error >= 0) {
+    if (!prepare_error_response(session, error))
+      return 0;
+  } else {
+    if (!prepare_response(session, next_protocol, aead_algorithm, compliant_128gcm))
+      return 0;
+  }
 
   return 1;
 }
