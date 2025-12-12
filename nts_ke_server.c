@@ -423,7 +423,7 @@ prepare_response(NKSN_Instance session, int error, int next_protocol, int aead_a
 static int
 process_request(NKSN_Instance session)
 {
-  int next_protocol_records = 0, aead_algorithm_records = 0;
+  int have_next_protocol_record = 0, have_aead_algorithm_record = 0;
   int next_protocol_values = 0, aead_algorithm_values = 0;
   int next_protocol = -1, aead_algorithm = -1, error = -1;
   int i, j, critical, type, length;
@@ -439,12 +439,12 @@ process_request(NKSN_Instance session)
 
     switch (type) {
       case NKE_RECORD_NEXT_PROTOCOL:
-        if (!critical || length < 2 || length % 2 != 0) {
+        if (!critical || length < 2 || length % 2 != 0 || have_next_protocol_record) {
           error = NKE_ERROR_BAD_REQUEST;
           break;
         }
 
-        next_protocol_records++;
+        have_next_protocol_record = 1;
 
         for (i = 0; i < MIN(length, sizeof (data)) / 2; i++) {
           next_protocol_values++;
@@ -453,12 +453,12 @@ process_request(NKSN_Instance session)
         }
         break;
       case NKE_RECORD_AEAD_ALGORITHM:
-        if (length < 2 || length % 2 != 0) {
+        if (length < 2 || length % 2 != 0 || have_aead_algorithm_record) {
           error = NKE_ERROR_BAD_REQUEST;
           break;
         }
 
-        aead_algorithm_records++;
+        have_aead_algorithm_record = 1;
 
         for (i = 0; i < MIN(length, sizeof (data)) / 2; i++) {
           aead_algorithm_values++;
@@ -489,9 +489,9 @@ process_request(NKSN_Instance session)
   }
 
   if (error < 0) {
-    if (next_protocol_records != 1 || next_protocol_values < 1 ||
+    if (!have_next_protocol_record || next_protocol_values < 1 ||
         (next_protocol == NKE_NEXT_PROTOCOL_NTPV4 &&
-         (aead_algorithm_records != 1 || aead_algorithm_values < 1)))
+         (!have_aead_algorithm_record || aead_algorithm_values < 1)))
       error = NKE_ERROR_BAD_REQUEST;
   }
 
