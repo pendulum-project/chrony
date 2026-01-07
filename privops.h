@@ -28,6 +28,8 @@
 #ifndef GOT_PRIVOPS_H
 #define GOT_PRIVOPS_H
 
+#include "nameserv.h"
+
 #ifdef PRIVOPS_ADJUSTTIME
 int PRV_AdjustTime(const struct timeval *delta, struct timeval *olddelta);
 #else
@@ -53,7 +55,7 @@ int PRV_BindSocket(int sock, struct sockaddr *address, socklen_t address_len);
 #endif
 
 #ifdef PRIVOPS_NAME2IPADDRESS
-int PRV_Name2IPAddress(const char *name, IPAddr *ip_addrs, int max_addrs);
+int PRV_Name2IPAddress(const char *name, DNS_AddressLookupResult *ip_addrs, int max_addrs);
 #else
 #define PRV_Name2IPAddress DNS_Name2IPAddress
 #endif

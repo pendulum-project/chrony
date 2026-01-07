@@ -67,7 +67,7 @@ static int default_credentials_refs = 0;
 /* ================================================== */
 
 static void
-name_resolve_handler(DNS_Status status, int n_addrs, IPAddr *ip_addrs, void *arg)
+name_resolve_handler(DNS_Status status, int n_addrs, DNS_AddressLookupResult *addrs, void *arg)
 {
   NKC_Instance inst = arg;
   int i;
@@ -86,13 +86,13 @@ name_resolve_handler(DNS_Status status, int n_addrs, IPAddr *ip_addrs, void *arg
     return;
   }
 
-  inst->ntp_address.ip_addr = ip_addrs[0];
+  inst->ntp_address.ip_addr = addrs[0].ip;
 
   /* Prefer an address in the same family as the NTS-KE server */
   for (i = 0; i < n_addrs; i++) {
-    DEBUG_LOG("%s resolved to %s", inst->server_name, UTI_IPToString(&ip_addrs[i]));
-    if (ip_addrs[i].family == inst->address.ip_addr.family) {
-      inst->ntp_address.ip_addr = ip_addrs[i];
+    DEBUG_LOG("%s resolved to %s", inst->server_name, UTI_IPToString(&addrs[i].ip));
+    if (addrs[i].ip.family == inst->address.ip_addr.family) {
+      inst->ntp_address.ip_addr = addrs[i].ip;
       break;
     }
   }

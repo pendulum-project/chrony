@@ -53,7 +53,7 @@ static double get_mono_time(void);
 static void
 resolve_random_address(DNS_Status status, int rand_bits)
 {
-  IPAddr ip_addrs[DNS_MAX_ADDRESSES];
+  DNS_AddressLookupResult addrs[DNS_MAX_ADDRESSES];
   int i, n_addrs;
 
   TEST_CHECK(requested_name);
@@ -61,13 +61,17 @@ resolve_random_address(DNS_Status status, int rand_bits)
 
   if (status == DNS_Success) {
     n_addrs = random() % DNS_MAX_ADDRESSES + 1;
-    for (i = 0; i < n_addrs; i++)
-      TST_GetRandomAddress(&ip_addrs[i], IPADDR_UNSPEC, rand_bits);
+    for (i = 0; i < n_addrs; i++) {
+      TST_GetRandomAddress(&addrs[i].ip, IPADDR_UNSPEC, rand_bits);
+      addrs[i].service_name[0] = 0;
+    }
   } else {
     n_addrs = 0;
   }
 
-  (resolve_handler)(status, n_addrs, ip_addrs, resolve_handler_arg);
+  DEBUG_LOG("Random resolving to %d addrs", n_addrs);
+
+  (resolve_handler)(status, n_addrs, addrs, resolve_handler_arg);
 }
 
 static int

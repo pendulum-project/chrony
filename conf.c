@@ -1164,7 +1164,7 @@ static void
 parse_initstepslew(char *line)
 {
   char *p, *hostname;
-  IPAddr ip_addr;
+  DNS_AddressLookupResult addr;
 
   /* Ignore the line if chronyd was started with -R. */
   if (restarted) {
@@ -1183,8 +1183,8 @@ parse_initstepslew(char *line)
     hostname = p;
     p = CPS_SplitWord(p);
     if (*hostname) {
-      if (DNS_Name2IPAddress(hostname, &ip_addr, 1) == DNS_Success) {
-        ARR_AppendElement(init_sources, &ip_addr);
+      if (DNS_Name2IPAddress(hostname, &addr, 1) == DNS_Success) {
+        ARR_AppendElement(init_sources, &addr.ip);
       } else {
         LOG(LOGS_WARN, "Could not resolve address of initstepslew server %s", hostname);
       }

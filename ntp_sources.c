@@ -533,7 +533,7 @@ replace_source_connectable(NTP_Remote_Address *old_addr, NTP_Remote_Address *new
 /* ================================================== */
 
 static void
-process_resolved_name(struct UnresolvedSource *us, IPAddr *ip_addrs, int n_addrs)
+process_resolved_name(struct UnresolvedSource *us, DNS_AddressLookupResult *addrs, int n_addrs)
 {
   NTP_Remote_Address old_addr, new_addr;
   SourceRecord *record;
@@ -547,7 +547,7 @@ process_resolved_name(struct UnresolvedSource *us, IPAddr *ip_addrs, int n_addrs
 
     for (i = 0; i < n_addrs; i++) {
       if (find_slot2(&us->address, &slot) == 2 &&
-          UTI_CompareIPs(&get_record(slot)->resolved_addr, &ip_addrs[i], NULL) == 0) {
+          UTI_CompareIPs(&get_record(slot)->resolved_addr, &addrs[i].ip, NULL) == 0) {
         DEBUG_LOG("%s still fresh", UTI_IPToString(&us->address.ip_addr));
         return;
       }
@@ -558,7 +558,7 @@ process_resolved_name(struct UnresolvedSource *us, IPAddr *ip_addrs, int n_addrs
     UTI_GetRandomBytes(&first, sizeof (first));
 
   for (i = 0; i < n_addrs; i++) {
-    new_addr.ip_addr = ip_addrs[((unsigned int)i + first) % n_addrs];
+    new_addr.ip_addr = addrs[((unsigned int)i + first) % n_addrs].ip;
 
     DEBUG_LOG("(%d) %s", i + 1, UTI_IPToString(&new_addr.ip_addr));
 
@@ -616,7 +616,7 @@ resolve_sources_timeout(void *arg)
 /* ================================================== */
 
 static void
-name_resolve_handler(DNS_Status status, int n_addrs, IPAddr *ip_addrs, void *anything)
+name_resolve_handler(DNS_Status status, int n_addrs, DNS_AddressLookupResult *addrs, void *anything)
 {
   struct UnresolvedSource *us, *next;
 
@@ -631,7 +631,7 @@ name_resolve_handler(DNS_Status status, int n_addrs, IPAddr *ip_addrs, void *any
     case DNS_TryAgain:
       break;
     case DNS_Success:
-      process_resolved_name(us, ip_addrs, n_addrs);
+      process_resolved_name(us, addrs, n_addrs);
       break;
     case DNS_Failure:
       LOG(LOGS_WARN, "Invalid host %s", us->name);

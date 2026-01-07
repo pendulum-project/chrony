@@ -43,7 +43,7 @@
 struct DNS_Async_Instance {
   const char *name;
   DNS_Status status;
-  IPAddr addresses[DNS_MAX_ADDRESSES];
+  DNS_AddressLookupResult addresses[DNS_MAX_ADDRESSES];
   DNS_NameResolveHandler handler;
   void *arg;
 
@@ -88,7 +88,7 @@ end_resolving(int fd, int event, void *anything)
   close(inst->pipe[1]);
 
   for (i = 0; inst->status == DNS_Success && i < DNS_MAX_ADDRESSES &&
-              inst->addresses[i].family != IPADDR_UNSPEC; i++)
+              inst->addresses[i].ip.family != IPADDR_UNSPEC; i++)
     ;
 
   (inst->handler)(inst->status, i, inst->addresses, inst->arg);

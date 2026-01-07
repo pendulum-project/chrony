@@ -48,7 +48,7 @@ DNS_SetAddressFamily(int family)
 }
 
 DNS_Status 
-DNS_Name2IPAddress(const char *name, IPAddr *ip_addrs, int max_addrs)
+DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs)
 {
   struct addrinfo hints, *res, *ai;
   int i, result;
@@ -56,15 +56,17 @@ DNS_Name2IPAddress(const char *name, IPAddr *ip_addrs, int max_addrs)
 
   max_addrs = MIN(max_addrs, DNS_MAX_ADDRESSES);
 
-  for (i = 0; i < max_addrs; i++)
-    ip_addrs[i].family = IPADDR_UNSPEC;
+  for (i = 0; i < max_addrs; i++) {
+    addrs[i].ip.family = IPADDR_UNSPEC;
+    addrs[i].service_name[0] = 0;
+  }
 
   /* Avoid calling getaddrinfo() if the name is an IP address */
   if (UTI_StringToIP(name, &ip)) {
     if (address_family != IPADDR_UNSPEC && ip.family != address_family)
       return DNS_Failure;
     if (max_addrs >= 1)
-      ip_addrs[0] = ip;
+      addrs[0].ip = ip;
     return DNS_Success;
   }
 
@@ -99,8 +101,8 @@ DNS_Name2IPAddress(const char *name, IPAddr *ip_addrs, int max_addrs)
       case AF_INET:
         if (address_family != IPADDR_UNSPEC && address_family != IPADDR_INET4)
           continue;
-        ip_addrs[i].family = IPADDR_INET4;
-        ip_addrs[i].addr.in4 = ntohl(((struct sockaddr_in *)ai->ai_addr)->sin_addr.s_addr);
+        addrs[i].ip.family = IPADDR_INET4;
+        addrs[i].ip.addr.in4 = ntohl(((struct sockaddr_in *)ai->ai_addr)->sin_addr.s_addr);
         i++;
         break;
 #ifdef FEAT_IPV6
@@ -110,9 +112,9 @@ DNS_Name2IPAddress(const char *name, IPAddr *ip_addrs, int max_addrs)
         /* Don't return an address that would lose a scope ID */
         if (((struct sockaddr_in6 *)ai->ai_addr)->sin6_scope_id != 0)
           continue;
-        ip_addrs[i].family = IPADDR_INET6;
-        memcpy(&ip_addrs[i].addr.in6, &((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr.s6_addr,
-               sizeof (ip_addrs->addr.in6));
+        addrs[i].ip.family = IPADDR_INET6;
+        memcpy(&addrs[i].ip.addr.in6, &((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr.s6_addr,
+               sizeof (addrs->ip.addr.in6));
         i++;
         break;
 #endif
@@ -121,7 +123,7 @@ DNS_Name2IPAddress(const char *name, IPAddr *ip_addrs, int max_addrs)
 
   freeaddrinfo(res);
 
-  return !max_addrs || ip_addrs[0].family != IPADDR_UNSPEC ? DNS_Success : DNS_Failure;
+  return !max_addrs || addrs[0].ip.family != IPADDR_UNSPEC ? DNS_Success : DNS_Failure;
 }
 
 /* ================================================== */
@@ -163,4 +165,3 @@ DNS_Reload(void)
 }
 
 /* ================================================== */
-
