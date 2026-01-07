@@ -330,7 +330,7 @@ handle_message(void *arg)
         inst->server_name[length + 1] = '\0';
       }
 
-      DNS_Name2IPAddressAsync(inst->server_name, name_resolve_handler, inst);
+      DNS_Name2IPAddressAsync(inst->server_name, name_resolve_handler, 0, inst);
       inst->resolving_name = 1;
     }
   }

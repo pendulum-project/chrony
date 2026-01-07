@@ -59,6 +59,7 @@ typedef struct {
   NCR_Instance data;            /* Data for the protocol engine for this source */
   char *name;                   /* Name of the source as it was specified
                                    (may be an IP address) */
+  int nts;                      /* Whether the source is NTS enabled */
   IPAddr resolved_addr;         /* Address resolved from the name, which can be
                                    different from remote_addr (e.g. NTS-KE) */
   int family;                   /* IP family of acceptable resolved addresses
@@ -100,6 +101,8 @@ struct UnresolvedSource {
   int pool_id;
   /* Name to be resolved */
   char *name;
+  /* Whether it should be resolved for NTS */
+  int service_nts;
   /* Address family to filter resolved addresses */
   int family;
   /* Flag indicating addresses should be used in a random order */
@@ -398,6 +401,7 @@ add_source(NTP_Remote_Address *remote_addr, char *name, int family, NTP_Source_T
 
       record = get_record(slot);
       record->name = Strdup(name ? name : UTI_IPToString(&remote_addr->ip_addr));
+      record->nts = params->nts;
       record->data = NCR_CreateInstance(remote_addr, type, params, record->name);
       record->remote_addr = NCR_GetRemoteAddress(record->data);
       record->resolved_addr = remote_addr->ip_addr;
@@ -671,7 +675,7 @@ name_resolve_handler(DNS_Status status, int n_addrs, DNS_AddressLookupResult *ad
   if (next) {
     /* Continue with the next source in the list */
     DEBUG_LOG("resolving %s", next->name);
-    DNS_Name2IPAddressAsync(next->name, name_resolve_handler, next);
+    DNS_Name2IPAddressAsync(next->name, name_resolve_handler, next->service_nts, next);
   } else {
     /* This was the last source in the list. If some sources couldn't
        be resolved, try again in exponentially increasing interval. */
@@ -717,7 +721,7 @@ resolve_sources(void)
 
   resolving_source = us;
   DEBUG_LOG("resolving %s", us->name);
-  DNS_Name2IPAddressAsync(us->name, name_resolve_handler, us);
+  DNS_Name2IPAddressAsync(us->name, name_resolve_handler, us->service_nts, us);
 }
 
 /* ================================================== */
@@ -842,6 +846,7 @@ NSR_AddSourceByName(char *name, int family, int port, int pool, NTP_Source_Type 
 
   us = MallocNew(struct UnresolvedSource);
   us->name = Strdup(name);
+  us->service_nts = params->nts;
   us->family = family;
   us->random_order = 0;
   us->refreshment = 0;
@@ -1070,6 +1075,7 @@ resolve_source_replacement(SourceRecord *record, int refreshment)
 
   us = MallocNew(struct UnresolvedSource);
   us->name = Strdup(record->name);
+  us->service_nts = record->nts;
   us->family = record->family;
   /* Ignore the order of addresses from the resolver to not get
      stuck with a pair of unreachable or otherwise unusable servers
