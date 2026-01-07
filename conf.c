@@ -1183,7 +1183,7 @@ parse_initstepslew(char *line)
     hostname = p;
     p = CPS_SplitWord(p);
     if (*hostname) {
-      if (DNS_Name2IPAddress(hostname, &addr, 1) == DNS_Success) {
+      if (DNS_Name2IPAddress(hostname, &addr, 1, 0) == DNS_Success) {
         ARR_AppendElement(init_sources, &addr.ip);
       } else {
         LOG(LOGS_WARN, "Could not resolve address of initstepslew server %s", hostname);

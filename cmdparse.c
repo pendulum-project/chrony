@@ -295,7 +295,7 @@ CPS_ParseAllowDeny(char *line, int *all, IPAddr *ip, int *subnet_bits)
   }
 
   /* The last possibility is a hostname */
-  if (bits < 0 && DNS_Name2IPAddress(net, &lookup_result, 1) == DNS_Success) {
+  if (bits < 0 && DNS_Name2IPAddress(net, &lookup_result, 1, 0) == DNS_Success) {
     *ip = lookup_result.ip;
     *subnet_bits = ip->family == IPADDR_INET6 ? 128 : 32;
     return 1;

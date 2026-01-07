@@ -32,7 +32,7 @@ static char *requested_name = NULL;
 static DNS_NameResolveHandler resolve_handler = NULL;
 static void *resolve_handler_arg = NULL;
 
-#define DNS_Name2IPAddressAsync(name, handler, arg) \
+#define DNS_Name2IPAddressAsync(name, handler, service_nts, arg) \
   requested_name = (name), \
   resolve_handler = (handler), \
   resolve_handler_arg = (arg)

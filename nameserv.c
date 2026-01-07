@@ -48,7 +48,7 @@ DNS_SetAddressFamily(int family)
 }
 
 DNS_Status 
-DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs)
+DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs, int service_nts)
 {
   struct addrinfo hints, *res, *ai;
   int i, result;
