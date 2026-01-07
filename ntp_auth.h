@@ -28,6 +28,7 @@
 #define GOT_NTP_AUTH_H
 
 #include "addressing.h"
+#include "nameserv.h"
 #include "ntp.h"
 #include "reports.h"
 
@@ -73,7 +74,7 @@ extern int NAU_CheckResponseAuth(NAU_Instance instance, NTP_Packet *response,
                                  NTP_PacketInfo *info);
 
 /* Change an authentication-specific address (e.g. after replacing a source) */
-extern void NAU_ChangeAddress(NAU_Instance instance, IPAddr *address);
+extern void NAU_ChangeAddress(NAU_Instance instance, DNS_AddressLookupResult *address);
 
 /* Save authentication-specific data to speed up the next start */
 extern void NAU_DumpData(NAU_Instance instance);

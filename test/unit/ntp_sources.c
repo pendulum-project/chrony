@@ -42,7 +42,7 @@ static void *resolve_handler_arg = NULL;
 #define NIO_IsServerConnectable(addr) (random() % 2)
 #define SCH_GetLastEventMonoTime() get_mono_time()
 
-static void change_remote_address(NCR_Instance inst, NTP_Remote_Address *remote_addr,
+static void change_remote_address(NCR_Instance inst, DNS_SockAddrLookupResult *remote_addr,
                                   int ntp_only);
 static double get_mono_time(void);
 
@@ -77,10 +77,11 @@ resolve_random_address(DNS_Status status, int rand_bits)
 static int
 update_random_address(NTP_Remote_Address *addr, int rand_bits)
 {
-  NTP_Remote_Address new_addr;
+  DNS_SockAddrLookupResult new_addr;
   NSR_Status status;
 
-  TST_GetRandomAddress(&new_addr.ip_addr, IPADDR_UNSPEC, rand_bits);
+  TST_GetRandomAddress(&new_addr.ip.ip, IPADDR_UNSPEC, rand_bits);
+  new_addr.ip.service_name[0] = 0;
   new_addr.port = random() % 1024;
 
   status = NSR_UpdateSourceNtpAddress(addr, &new_addr);
@@ -96,19 +97,23 @@ update_random_address(NTP_Remote_Address *addr, int rand_bits)
 }
 
 static void
-change_remote_address(NCR_Instance inst, NTP_Remote_Address *remote_addr, int ntp_only)
+change_remote_address(NCR_Instance inst, DNS_SockAddrLookupResult *remote_addr, int ntp_only)
 {
+  NTP_Remote_Address rem_addr;
   int update = !ntp_only && random() % 4 == 0, update_pos = random() % 2, r = 0;
+
+  rem_addr.ip_addr = remote_addr->ip.ip;
+  rem_addr.port = remote_addr->port;
 
   TEST_CHECK(record_lock);
 
   if (update && update_pos == 0)
-    r = update_random_address(random() % 2 ? remote_addr : NCR_GetRemoteAddress(inst), 4);
+    r = update_random_address(random() % 2 ? &rem_addr : NCR_GetRemoteAddress(inst), 4);
 
   NCR_ChangeRemoteAddress(inst, remote_addr, ntp_only);
 
   if (update && update_pos == 1)
-    r = update_random_address(random() % 2 ? remote_addr : NCR_GetRemoteAddress(inst), 4);
+    r = update_random_address(random() % 2 ? &rem_addr : NCR_GetRemoteAddress(inst), 4);
 
   if (r)
     TEST_CHECK(UTI_IsIPReal(&saved_address_update.old_address.ip_addr));

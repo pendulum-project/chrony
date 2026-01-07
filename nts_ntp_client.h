@@ -28,6 +28,7 @@
 #define GOT_NTS_NTP_CLIENT_H
 
 #include "addressing.h"
+#include "nameserv.h"
 #include "ntp.h"
 #include "reports.h"
 
@@ -42,7 +43,7 @@ extern int NNC_GenerateRequestAuth(NNC_Instance inst, NTP_Packet *packet,
 extern int NNC_CheckResponseAuth(NNC_Instance inst, NTP_Packet *packet,
                                  NTP_PacketInfo *info);
 
-extern void NNC_ChangeAddress(NNC_Instance inst, IPAddr *address);
+extern void NNC_ChangeAddress(NNC_Instance inst, DNS_AddressLookupResult *address);
 
 extern void NNC_DumpData(NNC_Instance inst);
 
