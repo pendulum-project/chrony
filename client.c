@@ -157,7 +157,7 @@ get_addresses(const char *hostnames, int port)
   struct Address *addr;
   ARR_Instance addrs;
   char *hostname, *s1, *s2;
-  IPAddr ip_addrs[DNS_MAX_ADDRESSES];
+  DNS_AddressLookupResult looked_up_addrs[DNS_MAX_ADDRESSES];
   int i;
 
   addrs = ARR_CreateInstance(sizeof (*addr));
@@ -175,17 +175,17 @@ get_addresses(const char *hostnames, int port)
       addr->type = SCK_ADDR_UNIX;
       addr->addr.path = Strdup(hostname);
     } else {
-      if (DNS_Name2IPAddress(hostname, ip_addrs, DNS_MAX_ADDRESSES) != DNS_Success) {
+      if (DNS_Name2IPAddress(hostname, looked_up_addrs, DNS_MAX_ADDRESSES) != DNS_Success) {
         DEBUG_LOG("Could not get IP address for %s", hostname);
         continue;
       }
 
-      for (i = 0; i < DNS_MAX_ADDRESSES && ip_addrs[i].family != IPADDR_UNSPEC; i++) {
+      for (i = 0; i < DNS_MAX_ADDRESSES && looked_up_addrs[i].ip.family != IPADDR_UNSPEC; i++) {
         addr = ARR_GetNewElement(addrs);
         addr->type = SCK_ADDR_IP;
-        addr->addr.ip.ip_addr = ip_addrs[i];
+        addr->addr.ip.ip_addr = looked_up_addrs[i].ip;
         addr->addr.ip.port = port;
-        DEBUG_LOG("Resolved %s to %s", hostname, UTI_IPToString(&ip_addrs[i]));
+        DEBUG_LOG("Resolved %s to %s", hostname, UTI_IPToString(&looked_up_addrs[i].ip));
       }
     }
   }
@@ -449,11 +449,15 @@ bits_to_mask(int bits, int family, IPAddr *mask)
 static int
 parse_source_address(char *word, IPAddr *address)
 {
+  DNS_AddressLookupResult lookup;
+
   if (UTI_StringToIdIP(word, address))
     return 1;
 
-  if (DNS_Name2IPAddress(word, address, 1) == DNS_Success)
+  if (DNS_Name2IPAddress(word, &lookup, 1) == DNS_Success) {
+    *address = lookup.ip;
     return 1;
+  }
 
   return 0;
 }
@@ -944,10 +948,10 @@ process_cmd_allowdeny(CMD_Request *msg, char *line, int cmd, int allcmd)
 static int
 process_cmd_accheck(CMD_Request *msg, char *line)
 {
-  IPAddr ip;
+  DNS_AddressLookupResult lookup;
   msg->command = htons(REQ_ACCHECK);
-  if (DNS_Name2IPAddress(line, &ip, 1) == DNS_Success) {
-    UTI_IPHostToNetwork(&ip, &msg->data.ac_check.ip);
+  if (DNS_Name2IPAddress(line, &lookup, 1) == DNS_Success) {
+    UTI_IPHostToNetwork(&lookup.ip, &msg->data.ac_check.ip);
     return 1;
   } else {    
     LOG(LOGS_ERR, "Could not read address");
@@ -960,10 +964,10 @@ process_cmd_accheck(CMD_Request *msg, char *line)
 static int
 process_cmd_cmdaccheck(CMD_Request *msg, char *line)
 {
-  IPAddr ip;
+  DNS_AddressLookupResult lookup;
   msg->command = htons(REQ_CMDACCHECK);
-  if (DNS_Name2IPAddress(line, &ip, 1) == DNS_Success) {
-    UTI_IPHostToNetwork(&ip, &msg->data.ac_check.ip);
+  if (DNS_Name2IPAddress(line, &lookup, 1) == DNS_Success) {
+    UTI_IPHostToNetwork(&lookup.ip, &msg->data.ac_check.ip);
     return 1;
   } else {    
     LOG(LOGS_ERR, "Could not read address");
@@ -1025,7 +1029,7 @@ process_cmd_add_source(CMD_Request *msg, char *line)
 {
   CPS_NTP_Source data;
   CPS_Status status;
-  IPAddr ip_addr;
+  DNS_AddressLookupResult lookup;
   int result = 0, type;
   const char *opt_name, *word;
   
@@ -1051,7 +1055,7 @@ process_cmd_add_source(CMD_Request *msg, char *line)
       /* Verify that the address is resolvable (chronyc and chronyd are
          assumed to be running on the same host) */
       if (strlen(data.name) >= sizeof (msg->data.ntp_source.name) ||
-          DNS_Name2IPAddress(data.name, &ip_addr, 1) != DNS_Success) {
+          DNS_Name2IPAddress(data.name, &lookup, 1) != DNS_Success) {
         LOG(LOGS_ERR, "Invalid host/IP address");
         break;
       }
@@ -3730,5 +3734,3 @@ main(int argc, char **argv)
 
   return !ret;
 }
-
-

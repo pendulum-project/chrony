@@ -106,7 +106,7 @@ typedef struct {
 #endif
 
 typedef struct {
-  IPAddr addresses[DNS_MAX_ADDRESSES];
+  DNS_AddressLookupResult addresses[DNS_MAX_ADDRESSES];
 } ResName2IPAddress;
 
 typedef struct {
@@ -573,7 +573,7 @@ PRV_BindSocket(int sock, struct sockaddr *address, socklen_t address_len)
 
 #ifdef PRIVOPS_NAME2IPADDRESS
 int
-PRV_Name2IPAddress(const char *name, IPAddr *ip_addrs, int max_addrs)
+PRV_Name2IPAddress(const char *name, DNS_AddressLookupResult *ip_addrs, int max_addrs)
 {
   PrvRequest req;
   PrvResponse res;
