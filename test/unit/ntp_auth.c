@@ -129,6 +129,7 @@ test_unit(void)
   RPT_AuthReport report;
   NTP_AuthMode mode;
   IPSockAddr nts_addr;
+  DNS_AddressLookupResult lookup;
   uint32_t key_id, kod;
   char conf[][100] = {
     "keyfile ntp_core.keys"
@@ -204,8 +205,11 @@ test_unit(void)
 
       NAU_DumpData(inst);
       NAU_GetReport(inst, &report);
-      if (random() % 2)
-        NAU_ChangeAddress(inst, &nts_addr.ip_addr);
+      if (random() % 2) {
+        lookup.ip = nts_addr.ip_addr;
+        lookup.service_name[0] = 0;
+        NAU_ChangeAddress(inst, &lookup);
+      }
 
       if (inst->mode == NTP_AUTH_NTS) {
         for (j = random() % 5; j > 0; j--)

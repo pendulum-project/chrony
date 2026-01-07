@@ -30,6 +30,7 @@
 #include "sysincl.h"
 
 #include "addressing.h"
+#include "nameserv.h"
 #include "ntp.h"
 #include "candm.h"
 #include "cmac.h"
@@ -119,6 +120,7 @@ extern void UTI_IPNetworkToHost(const IPAddr *src, IPAddr *dest);
 extern int UTI_CompareIPs(const IPAddr *a, const IPAddr *b, const IPAddr *mask);
 
 extern char *UTI_IPSockAddrToString(const IPSockAddr *sa);
+extern char *UTI_DNS_SockAddrLookupResultToString(const DNS_SockAddrLookupResult *sa);
 
 extern char *UTI_IPSubnetToString(IPAddr *subnet, int bits);
 

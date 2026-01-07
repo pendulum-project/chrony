@@ -144,7 +144,7 @@ static ARR_Instance pools;
 /* Requested update of a source's address */
 struct AddressUpdate {
   NTP_Remote_Address old_address;
-  NTP_Remote_Address new_address;
+  DNS_SockAddrLookupResult new_address;
 };
 
 /* Update saved when record_lock is true */
@@ -431,13 +431,17 @@ add_source(NTP_Remote_Address *remote_addr, char *name, int family, NTP_Source_T
 /* ================================================== */
 
 static NSR_Status
-change_source_address(NTP_Remote_Address *old_addr, NTP_Remote_Address *new_addr,
+change_source_address(NTP_Remote_Address *old_addr, DNS_SockAddrLookupResult *new_address,
                       int replacement)
 {
+  NTP_Remote_Address new_addr;
   int slot1, slot2, found;
   SourceRecord *record;
   LOG_Severity severity;
   char *name;
+
+  new_addr.ip_addr = new_address->ip.ip;
+  new_addr.port = new_address->port;
 
   found = find_slot2(old_addr, &slot1);
   if (found != 2)
@@ -445,7 +449,7 @@ change_source_address(NTP_Remote_Address *old_addr, NTP_Remote_Address *new_addr
 
   /* Make sure there is no other source using the new address (with the same
      or different port), but allow a source to have its port changed */
-  found = find_slot2(new_addr, &slot2);
+  found = find_slot2(&new_addr, &slot2);
   if (found == 2 || (found != 0 && slot1 != slot2))
     return NSR_AlreadyInUse;
 
@@ -453,14 +457,14 @@ change_source_address(NTP_Remote_Address *old_addr, NTP_Remote_Address *new_addr
   record_lock = 1;
 
   record = get_record(slot1);
-  NCR_ChangeRemoteAddress(record->data, new_addr, !replacement);
+  NCR_ChangeRemoteAddress(record->data, new_address, !replacement);
   if (replacement)
-    record->resolved_addr = new_addr->ip_addr;
+    record->resolved_addr = new_addr.ip_addr;
 
   BRIEF_ASSERT(record->remote_addr == NCR_GetRemoteAddress(record->data) &&
-               UTI_CompareIPs(&record->remote_addr->ip_addr, &new_addr->ip_addr, NULL) == 0);
+               UTI_CompareIPs(&record->remote_addr->ip_addr, &new_addr.ip_addr, NULL) == 0);
 
-  if (!UTI_IsIPReal(&old_addr->ip_addr) && UTI_IsIPReal(&new_addr->ip_addr)) {
+  if (!UTI_IsIPReal(&old_addr->ip_addr) && UTI_IsIPReal(&new_addr.ip_addr)) {
     if (auto_start_sources)
       NCR_StartInstance(record->data);
     if (record->pool_id != INVALID_POOL)
@@ -485,10 +489,10 @@ change_source_address(NTP_Remote_Address *old_addr, NTP_Remote_Address *new_addr
 
     LOG(severity, "Source %s %s %s (%s)", UTI_IPToString(&old_addr->ip_addr),
         replacement ? "replaced with" : "changed to",
-        UTI_IPToString(&new_addr->ip_addr), name);
+        UTI_IPToString(&new_addr.ip_addr), name);
   } else {
     LOG(severity, "Source %s (%s) changed port to %d",
-        UTI_IPToString(&new_addr->ip_addr), name, new_addr->port);
+        UTI_IPToString(&new_addr.ip_addr), name, new_addr.port);
   }
 
   return NSR_Success;
@@ -507,7 +511,7 @@ handle_saved_address_update(void)
     /* This is expected to happen only if the old address is wrong */
     LOG(LOGS_ERR, "Could not change %s to %s",
         UTI_IPSockAddrToString(&saved_address_update.old_address),
-        UTI_IPSockAddrToString(&saved_address_update.new_address));
+        UTI_DNS_SockAddrLookupResultToString(&saved_address_update.new_address));
 
   saved_address_update.old_address.ip_addr.family = IPADDR_UNSPEC;
 }
@@ -515,10 +519,14 @@ handle_saved_address_update(void)
 /* ================================================== */
 
 static int
-replace_source_connectable(NTP_Remote_Address *old_addr, NTP_Remote_Address *new_addr)
+replace_source_connectable(NTP_Remote_Address *old_addr, DNS_SockAddrLookupResult *new_addr)
 {
-  if (!NIO_IsServerConnectable(new_addr)) {
-    DEBUG_LOG("%s not connectable", UTI_IPToString(&new_addr->ip_addr));
+  NTP_Remote_Address new_remote;
+  new_remote.ip_addr = new_addr->ip.ip;
+  new_remote.port = new_addr->port;
+
+  if (!NIO_IsServerConnectable(&new_remote)) {
+    DEBUG_LOG("%s not connectable", UTI_IPToString(&new_addr->ip.ip));
     return 0;
   }
 
@@ -535,7 +543,8 @@ replace_source_connectable(NTP_Remote_Address *old_addr, NTP_Remote_Address *new
 static void
 process_resolved_name(struct UnresolvedSource *us, DNS_AddressLookupResult *addrs, int n_addrs)
 {
-  NTP_Remote_Address old_addr, new_addr;
+  NTP_Remote_Address old_addr;
+  DNS_SockAddrLookupResult new_addr;
   SourceRecord *record;
   unsigned short first = 0;
   int i, j, slot;
@@ -558,12 +567,12 @@ process_resolved_name(struct UnresolvedSource *us, DNS_AddressLookupResult *addr
     UTI_GetRandomBytes(&first, sizeof (first));
 
   for (i = 0; i < n_addrs; i++) {
-    new_addr.ip_addr = addrs[((unsigned int)i + first) % n_addrs].ip;
+    new_addr.ip = addrs[((unsigned int)i + first) % n_addrs];
 
-    DEBUG_LOG("(%d) %s", i + 1, UTI_IPToString(&new_addr.ip_addr));
+    DEBUG_LOG("(%d) %s", i + 1, UTI_IPToString(&new_addr.ip.ip));
 
     /* Skip addresses not from the requested family */
-    if (us->family != IPADDR_UNSPEC && us->family != new_addr.ip_addr.family)
+    if (us->family != IPADDR_UNSPEC && us->family != new_addr.ip.ip.family)
       continue;
 
     if (us->pool_id != INVALID_POOL) {
@@ -1174,15 +1183,15 @@ NSR_RefreshAddresses(void)
 /* ================================================== */
 
 NSR_Status
-NSR_UpdateSourceNtpAddress(NTP_Remote_Address *old_addr, NTP_Remote_Address *new_addr)
+NSR_UpdateSourceNtpAddress(NTP_Remote_Address *old_addr, DNS_SockAddrLookupResult *new_addr)
 {
   int slot;
 
-  if (!UTI_IsIPReal(&old_addr->ip_addr) || !UTI_IsIPReal(&new_addr->ip_addr))
+  if (!UTI_IsIPReal(&old_addr->ip_addr) || !UTI_IsIPReal(&new_addr->ip.ip))
     return NSR_InvalidAF;
 
-  if (UTI_CompareIPs(&old_addr->ip_addr, &new_addr->ip_addr, NULL) != 0 &&
-      find_slot(&new_addr->ip_addr, &slot))
+  if (UTI_CompareIPs(&old_addr->ip_addr, &new_addr->ip.ip, NULL) != 0 &&
+      find_slot(&new_addr->ip.ip, &slot))
     return NSR_AlreadyInUse;
 
   /* If a record is being modified (e.g. by change_source_address(), or the

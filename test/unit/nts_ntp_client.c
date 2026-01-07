@@ -245,7 +245,7 @@ test_unit(void)
   NTP_PacketInfo info;
   NTP_Packet packet;
   IPSockAddr addr;
-  IPAddr ip_addr;
+  DNS_AddressLookupResult ip_addr;
   int i, j, prev_num_cookies, valid;
 
   TEST_CHECK(SIV_GetKeyLength(AEAD_AES_SIV_CMAC_256) > 0);
@@ -293,9 +293,10 @@ test_unit(void)
     TEST_CHECK(inst->ok_response == valid);
 
     if (random() % 10 == 0) {
-      TST_GetRandomAddress(&ip_addr, IPADDR_INET4, 32);
+      TST_GetRandomAddress(&ip_addr.ip, IPADDR_INET4, 32);
+      ip_addr.service_name[0] = 0;
       NNC_ChangeAddress(inst, &ip_addr);
-      TEST_CHECK(UTI_CompareIPs(&inst->nts_address.ip_addr, &ip_addr, NULL) == 0);
+      TEST_CHECK(UTI_CompareIPs(&inst->nts_address.ip_addr, &ip_addr.ip, NULL) == 0);
     }
   }
 

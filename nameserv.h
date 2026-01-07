@@ -43,6 +43,11 @@ typedef struct {
   char service_name[DNS_SERVICE_NAME_LEN];
 } DNS_AddressLookupResult;
 
+typedef struct {
+  DNS_AddressLookupResult ip;
+  uint16_t port;
+} DNS_SockAddrLookupResult;
+
 /* Resolve names only to selected address family */
 extern void DNS_SetAddressFamily(int family);
 
