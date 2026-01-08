@@ -110,6 +110,7 @@ For better control, use the options below.
   --disable-readline     Disable line editing support
   --without-editline     Don't use editline even if it is available
   --disable-sechash      Disable support for hashes other than MD5
+  --without-getdns       Don't use getdns
   --without-nettle       Don't use nettle even if it is available
   --without-gnutls       Don't use gnutls even if it is available
   --without-nss          Don't use NSS even if it is available
@@ -122,6 +123,7 @@ For better control, use the options below.
   --disable-ipv6         Disable IPv6 support
   --disable-rtc          Don't include RTC even on Linux
   --disable-privdrop     Disable support for dropping root privileges
+  --disable-srv          Disable support for resolving through SRV records
   --without-libcap       Don't use libcap even if it is available
   --enable-scfilter      Enable support for system call filtering
   --without-seccomp      Don't use seccomp even if it is available
@@ -221,6 +223,8 @@ feat_cmdmon=1
 feat_refclock=1
 feat_readline=1
 try_editline=1
+feat_srv=1
+try_getdns=1
 feat_sechash=1
 try_nettle=1
 try_nss=1
@@ -383,8 +387,14 @@ do
     --without-tomcrypt )
       try_tomcrypt=0
     ;;
+    --disable-srv )
+      feat_srv=0
+    ;;
     --disable-nts )
       feat_nts=0
+    ;;
+    --without-getdns )
+      try_getdns=0
     ;;
     --without-gnutls )
       try_gnutls=0
@@ -970,6 +980,17 @@ EXTRA_OBJECTS="$EXTRA_OBJECTS $HASH_OBJ"
 EXTRA_CLI_OBJECTS="$EXTRA_CLI_OBJECTS $HASH_OBJ"
 LIBS="$LIBS $HASH_LINK"
 
+if [ $feat_srv = "1" ] && [ $try_getdns = "1" ]; then
+  if test_code 'getdns' 'getdns/getdns.h' '' '-lgetdns' '
+    getdns_context *context;
+    getdns_context_create(&context, 1);'
+  then
+    EXTRA_LIBS="$EXTRA_LIBS -lgetdns"
+    EXTRA_CLI_LIBS="$EXTRA_CLI_LIBS -lgetdns"
+    add_def FEAT_SRV
+  fi
+fi
+
 if [ $feat_nts = "1" ] && [ $try_gnutls = "1" ]; then
   if [ "$HASH_OBJ" = "hash_gnutls.o" ]; then
     test_cflags=""
@@ -1096,7 +1117,7 @@ add_def MAIL_PROGRAM "\"$mail_program\""
 
 common_features="`get_features SECHASH IPV6 DEBUG`"
 chronyc_features="`get_features READLINE`"
-chronyd_features="`get_features CMDMON REFCLOCK RTC PRIVDROP SCFILTER SIGND NTS`"
+chronyd_features="`get_features CMDMON REFCLOCK RTC PRIVDROP SCFILTER SIGND NTS SRV`"
 add_def CHRONYC_FEATURES "\"$chronyc_features $common_features\""
 add_def CHRONYD_FEATURES "\"$chronyd_features $common_features\""
 echo "Features : $chronyd_features $chronyc_features $common_features"
@@ -1141,4 +1162,3 @@ done
 
 # =======================================================================
 # vim:et:sw=2:ht=2:sts=2:fdm=marker:cms=#%s
-
