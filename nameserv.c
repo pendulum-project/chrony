@@ -112,6 +112,7 @@ DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_add
     char *last_name = NULL;
     getdns_return_t getdns_status;
     size_t returned_addresses;
+    size_t domain_name_len;
 
     if (dns_context == NULL)
     {
@@ -161,6 +162,10 @@ DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_add
         LOG_FATAL("Unrecoverable error calling getdns.");
       if (getdns_convert_dns_name_to_fqdn(raw_data, &service_domain))
         LOG_FATAL("Unrecoverable error calling getnds.");
+      /* Remove any potential trailing dot as it would interfere with certificate validation*/
+      domain_name_len = strlen(service_domain);
+      if (service_domain[domain_name_len-1] == '.')
+        service_domain[domain_name_len-1] = 0;
       //*Ignore too-long domain names */
       if (strlen(service_domain) >= DNS_SERVICE_NAME_LEN)
         continue;
