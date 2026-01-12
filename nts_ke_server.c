@@ -922,6 +922,9 @@ load_auth_tokens(void)
     }
   }
 
+  fclose(f);
+  return;
+
 error:
   LOG(LOGS_ERR, "Could not load all authentication tokens");
   fclose(f);
