@@ -41,6 +41,7 @@ typedef enum {
 typedef struct {
   IPAddr ip;
   char service_name[DNS_SERVICE_NAME_LEN];
+  uint16_t service_port;
 } DNS_AddressLookupResult;
 
 typedef struct {

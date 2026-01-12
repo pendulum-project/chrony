@@ -84,6 +84,7 @@ DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_add
   for (i = 0; i < max_addrs; i++) {
     addrs[i].ip.family = IPADDR_UNSPEC;
     addrs[i].service_name[0] = 0;
+    addrs[i].service_port = 0;
   }
 
   /* Avoid dealing with the max_addrs=0 edgecase below */

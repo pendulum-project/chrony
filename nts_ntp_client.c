@@ -561,6 +561,10 @@ NNC_ChangeAddress(NNC_Instance inst, DNS_AddressLookupResult *address)
     inst->name = strdup(address->service_name);
   }
 
+  if (address->service_port != 0) {
+    inst->nts_address.port = address->service_port;
+  }
+
   reset_instance(inst);
 
   DEBUG_LOG("NTS reset");
