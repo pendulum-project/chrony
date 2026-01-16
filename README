@@ -1,3 +1,15 @@
+This is a modified version of chrony 4.8, with added support for the protocols
+needed for NTS pools. It is mainly intended for use as a server for the
+experimental pool at https://experimental.ntspooltest.org/.
+
+For inclusion in a pool, this version of chrony requires that the pool token is
+added to the file specified by the ntsauthtokenfile configuration command. See
+the crhony.conf documentation for details on how to do this.
+
+The original README for chrony is included below for reference.
+
+===============================================================================
+
 This is the README for chrony.
 
 What is chrony?
