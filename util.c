@@ -565,11 +565,11 @@ UTI_DNS_SockAddrLookupResultToString(const DNS_SockAddrLookupResult *sa)
   char buf[BUFFER_LENGTH], *result;
 
   /* Copy to a separate buffer to avoid a compiler warning */
-  snprintf(buf, sizeof (buf), "%s", UTI_IPToString(&sa->ip.ip));
+  snprintf(buf, sizeof (buf), "%s", UTI_IPToString(&sa->ip_addr.ip));
 
   result = NEXT_BUFFER;
   snprintf(result, BUFFER_LENGTH,
-           sa->ip.ip.family != IPADDR_INET6 ? "%s:%hu" : "[%s]:%hu", buf, sa->port);
+           sa->ip_addr.ip.family != IPADDR_INET6 ? "%s:%hu" : "[%s]:%hu", buf, sa->port);
 
   return result;
 }
