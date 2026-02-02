@@ -444,7 +444,7 @@ change_source_address(NTP_Remote_Address *old_addr, DNS_SockAddrLookupResult *ne
   LOG_Severity severity;
   char *name;
 
-  new_addr.ip_addr = new_address->ip.ip;
+  new_addr.ip_addr = new_address->ip_addr.ip;
   new_addr.port = new_address->port;
 
   found = find_slot2(old_addr, &slot1);
@@ -526,11 +526,11 @@ static int
 replace_source_connectable(NTP_Remote_Address *old_addr, DNS_SockAddrLookupResult *new_addr)
 {
   NTP_Remote_Address new_remote;
-  new_remote.ip_addr = new_addr->ip.ip;
+  new_remote.ip_addr = new_addr->ip_addr.ip;
   new_remote.port = new_addr->port;
 
   if (!NIO_IsServerConnectable(&new_remote)) {
-    DEBUG_LOG("%s not connectable", UTI_IPToString(&new_addr->ip.ip));
+    DEBUG_LOG("%s not connectable", UTI_IPToString(&new_addr->ip_addr.ip));
     return 0;
   }
 
@@ -571,12 +571,12 @@ process_resolved_name(struct UnresolvedSource *us, DNS_AddressLookupResult *addr
     UTI_GetRandomBytes(&first, sizeof (first));
 
   for (i = 0; i < n_addrs; i++) {
-    new_addr.ip = addrs[((unsigned int)i + first) % n_addrs];
+    new_addr.ip_addr = addrs[((unsigned int)i + first) % n_addrs];
 
-    DEBUG_LOG("(%d) %s", i + 1, UTI_IPToString(&new_addr.ip.ip));
+    DEBUG_LOG("(%d) %s", i + 1, UTI_IPToString(&new_addr.ip_addr.ip));
 
     /* Skip addresses not from the requested family */
-    if (us->family != IPADDR_UNSPEC && us->family != new_addr.ip.ip.family)
+    if (us->family != IPADDR_UNSPEC && us->family != new_addr.ip_addr.ip.family)
       continue;
 
     if (us->pool_id != INVALID_POOL) {
@@ -1193,11 +1193,11 @@ NSR_UpdateSourceNtpAddress(NTP_Remote_Address *old_addr, DNS_SockAddrLookupResul
 {
   int slot;
 
-  if (!UTI_IsIPReal(&old_addr->ip_addr) || !UTI_IsIPReal(&new_addr->ip.ip))
+  if (!UTI_IsIPReal(&old_addr->ip_addr) || !UTI_IsIPReal(&new_addr->ip_addr.ip))
     return NSR_InvalidAF;
 
-  if (UTI_CompareIPs(&old_addr->ip_addr, &new_addr->ip.ip, NULL) != 0 &&
-      find_slot(&new_addr->ip.ip, &slot))
+  if (UTI_CompareIPs(&old_addr->ip_addr, &new_addr->ip_addr.ip, NULL) != 0 &&
+      find_slot(&new_addr->ip_addr.ip, &slot))
     return NSR_AlreadyInUse;
 
   /* If a record is being modified (e.g. by change_source_address(), or the
