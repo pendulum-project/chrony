@@ -73,7 +73,7 @@ DNS_SetAddressFamily(int family)
 }
 
 DNS_Status 
-DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs, int service_nts)
+DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs, int use_srv_lookup)
 {
   struct addrinfo hints, *res, *ai;
   int i, result;
@@ -102,7 +102,7 @@ DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_add
 
 #ifdef FEAT_SRV
   /* First try if we can do a service record based resolution" */
-  if (service_nts) {
+  if (use_srv_lookup) {
     int write_idx;
     getdns_dict *extensions = NULL, *response = NULL;
     getdns_list *service_addresses = NULL;
