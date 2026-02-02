@@ -45,7 +45,7 @@ typedef struct {
 } DNS_AddressLookupResult;
 
 typedef struct {
-  DNS_AddressLookupResult ip;
+  DNS_AddressLookupResult ip_addr;
   uint16_t port;
 } DNS_SockAddrLookupResult;
 

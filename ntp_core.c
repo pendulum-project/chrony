@@ -828,9 +828,9 @@ NCR_ChangeRemoteAddress(NCR_Instance inst, DNS_SockAddrLookupResult *remote_addr
   NCR_ResetInstance(inst);
 
   if (!ntp_only)
-    NAU_ChangeAddress(inst->auth, &remote_addr->ip);
+    NAU_ChangeAddress(inst->auth, &remote_addr->ip_addr);
 
-  inst->remote_addr.ip_addr = remote_addr->ip.ip;
+  inst->remote_addr.ip_addr = remote_addr->ip_addr.ip;
   inst->remote_addr.port = remote_addr->port;
 
   if (inst->mode == MODE_CLIENT)
@@ -849,7 +849,7 @@ NCR_ChangeRemoteAddress(NCR_Instance inst, DNS_SockAddrLookupResult *remote_addr
     NCR_ResetPoll(inst);
 
   /* Update the reference ID and reset the source/sourcestats instances */
-  SRC_SetRefid(inst->source, UTI_IPToRefid(&remote_addr->ip.ip),
+  SRC_SetRefid(inst->source, UTI_IPToRefid(&remote_addr->ip_addr.ip),
                &inst->remote_addr.ip_addr);
   SRC_ResetInstance(inst->source);
 
