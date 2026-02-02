@@ -823,14 +823,15 @@ NCR_ResetPoll(NCR_Instance instance)
 /* ================================================== */
 
 void
-NCR_ChangeRemoteAddress(NCR_Instance inst, NTP_Remote_Address *remote_addr, int ntp_only)
+NCR_ChangeRemoteAddress(NCR_Instance inst, DNS_SockAddrLookupResult *remote_addr, int ntp_only)
 {
   NCR_ResetInstance(inst);
 
   if (!ntp_only)
-    NAU_ChangeAddress(inst->auth, &remote_addr->ip_addr);
+    NAU_ChangeAddress(inst->auth, &remote_addr->ip);
 
-  inst->remote_addr = *remote_addr;
+  inst->remote_addr.ip_addr = remote_addr->ip.ip;
+  inst->remote_addr.port = remote_addr->port;
 
   if (inst->mode == MODE_CLIENT)
     close_client_socket(inst);
@@ -838,7 +839,7 @@ NCR_ChangeRemoteAddress(NCR_Instance inst, NTP_Remote_Address *remote_addr, int 
     NIO_CloseServerSocket(inst->local_addr.sock_fd);
     inst->local_addr.ip_addr.family = IPADDR_UNSPEC;
     inst->local_addr.if_index = INVALID_IF_INDEX;
-    inst->local_addr.sock_fd = NIO_OpenServerSocket(remote_addr);
+    inst->local_addr.sock_fd = NIO_OpenServerSocket(&inst->remote_addr);
   }
 
   /* Reset the polling interval only if the source wasn't unreachable to
@@ -848,7 +849,7 @@ NCR_ChangeRemoteAddress(NCR_Instance inst, NTP_Remote_Address *remote_addr, int 
     NCR_ResetPoll(inst);
 
   /* Update the reference ID and reset the source/sourcestats instances */
-  SRC_SetRefid(inst->source, UTI_IPToRefid(&remote_addr->ip_addr),
+  SRC_SetRefid(inst->source, UTI_IPToRefid(&remote_addr->ip.ip),
                &inst->remote_addr.ip_addr);
   SRC_ResetInstance(inst->source);
 

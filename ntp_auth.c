@@ -332,7 +332,7 @@ NAU_CheckResponseAuth(NAU_Instance instance, NTP_Packet *response, NTP_PacketInf
 /* ================================================== */
 
 void
-NAU_ChangeAddress(NAU_Instance instance, IPAddr *address)
+NAU_ChangeAddress(NAU_Instance instance, DNS_AddressLookupResult *address)
 {
   switch (instance->mode) {
     case NTP_AUTH_NONE:
