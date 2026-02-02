@@ -42,7 +42,7 @@
 
 struct DNS_Async_Instance {
   const char *name;
-  int service_nts;
+  int use_srv_lookup;
   DNS_Status status;
   DNS_AddressLookupResult addresses[DNS_MAX_ADDRESSES];
   DNS_NameResolveHandler handler;
@@ -62,7 +62,7 @@ start_resolving(void *anything)
   struct DNS_Async_Instance *inst = (struct DNS_Async_Instance *)anything;
 
   pthread_mutex_lock(&privops_lock);
-  inst->status = PRV_Name2IPAddress(inst->name, inst->addresses, DNS_MAX_ADDRESSES, inst->service_nts);
+  inst->status = PRV_Name2IPAddress(inst->name, inst->addresses, DNS_MAX_ADDRESSES, inst->use_srv_lookup);
   pthread_mutex_unlock(&privops_lock);
 
   /* Notify the main thread that the result is ready */
@@ -100,13 +100,13 @@ end_resolving(int fd, int event, void *anything)
 /* ================================================== */
 
 void
-DNS_Name2IPAddressAsync(const char *name, DNS_NameResolveHandler handler, int service_nts, void *anything)
+DNS_Name2IPAddressAsync(const char *name, DNS_NameResolveHandler handler, int use_srv_lookup, void *anything)
 {
   struct DNS_Async_Instance *inst;
 
   inst = MallocNew(struct DNS_Async_Instance);
   inst->name = name;
-  inst->service_nts = service_nts;
+  inst->use_srv_lookup = use_srv_lookup;
   inst->handler = handler;
   inst->arg = anything;
   inst->status = DNS_Failure;
