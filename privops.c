@@ -76,7 +76,7 @@ typedef struct {
 
 typedef struct {
   char name[256];
-  int service_nts;
+  int perform_srv;
 } ReqName2IPAddress;
 
 typedef struct {
@@ -284,7 +284,7 @@ do_name_to_ipaddress(ReqName2IPAddress *req, PrvResponse *res)
   req->name[sizeof (req->name) - 1] = '\0';
 
   res->rc = DNS_Name2IPAddress(req->name, res->data.name_to_ipaddress.addresses,
-                               DNS_MAX_ADDRESSES, req->service_nts);
+                               DNS_MAX_ADDRESSES, req->perform_srv);
 }
 #endif
 
@@ -574,14 +574,14 @@ PRV_BindSocket(int sock, struct sockaddr *address, socklen_t address_len)
 
 #ifdef PRIVOPS_NAME2IPADDRESS
 int
-PRV_Name2IPAddress(const char *name, DNS_AddressLookupResult *ip_addrs, int service_nts, int max_addrs)
+PRV_Name2IPAddress(const char *name, DNS_AddressLookupResult *ip_addrs, int perform_srv, int max_addrs)
 {
   PrvRequest req;
   PrvResponse res;
   int i;
 
   if (!have_helper())
-    return DNS_Name2IPAddress(name, ip_addrs, service_nts, max_addrs);
+    return DNS_Name2IPAddress(name, ip_addrs, perform_srv, max_addrs);
 
   memset(&req, 0, sizeof (req));
   req.op = OP_NAME2IPADDRESS;

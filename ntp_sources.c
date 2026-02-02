@@ -102,7 +102,7 @@ struct UnresolvedSource {
   /* Name to be resolved */
   char *name;
   /* Whether it should be resolved for NTS */
-  int service_nts;
+  int perform_srv;
   /* Address family to filter resolved addresses */
   int family;
   /* Flag indicating addresses should be used in a random order */
@@ -675,7 +675,7 @@ name_resolve_handler(DNS_Status status, int n_addrs, DNS_AddressLookupResult *ad
   if (next) {
     /* Continue with the next source in the list */
     DEBUG_LOG("resolving %s", next->name);
-    DNS_Name2IPAddressAsync(next->name, name_resolve_handler, next->service_nts, next);
+    DNS_Name2IPAddressAsync(next->name, name_resolve_handler, next->perform_srv, next);
   } else {
     /* This was the last source in the list. If some sources couldn't
        be resolved, try again in exponentially increasing interval. */
@@ -721,7 +721,7 @@ resolve_sources(void)
 
   resolving_source = us;
   DEBUG_LOG("resolving %s", us->name);
-  DNS_Name2IPAddressAsync(us->name, name_resolve_handler, us->service_nts, us);
+  DNS_Name2IPAddressAsync(us->name, name_resolve_handler, us->perform_srv, us);
 }
 
 /* ================================================== */
@@ -846,7 +846,7 @@ NSR_AddSourceByName(char *name, int family, int port, int pool, NTP_Source_Type 
 
   us = MallocNew(struct UnresolvedSource);
   us->name = Strdup(name);
-  us->service_nts = params->nts;
+  us->perform_srv = params->nts;
   us->family = family;
   us->random_order = 0;
   us->refreshment = 0;
@@ -1075,7 +1075,7 @@ resolve_source_replacement(SourceRecord *record, int refreshment)
 
   us = MallocNew(struct UnresolvedSource);
   us->name = Strdup(record->name);
-  us->service_nts = record->nts;
+  us->perform_srv = record->nts;
   us->family = record->family;
   /* Ignore the order of addresses from the resolver to not get
      stuck with a pair of unreachable or otherwise unusable servers
