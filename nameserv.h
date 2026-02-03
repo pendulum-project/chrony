@@ -45,7 +45,7 @@ typedef struct {
 } DNS_AddressLookupResult;
 
 typedef struct {
-  DNS_AddressLookupResult ip;
+  DNS_AddressLookupResult ip_addr;
   uint16_t port;
 } DNS_SockAddrLookupResult;
 
@@ -55,7 +55,7 @@ extern void DNS_SetAddressFamily(int family);
 /* Maximum number of addresses returned by DNS_Name2IPAddress */
 #define DNS_MAX_ADDRESSES 16
 
-extern DNS_Status DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs, int service_nts);
+extern DNS_Status DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs, int use_srv_lookup);
 
 extern int DNS_IPAddress2Name(IPAddr *ip_addr, char *name, int len);
 

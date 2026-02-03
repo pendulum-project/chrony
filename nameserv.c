@@ -73,7 +73,7 @@ DNS_SetAddressFamily(int family)
 }
 
 DNS_Status 
-DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs, int service_nts)
+DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_addrs, int use_srv_lookup)
 {
   struct addrinfo hints, *res, *ai;
   int i, result;
@@ -102,8 +102,7 @@ DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_add
 
 #ifdef FEAT_SRV
   /* First try if we can do a service record based resolution" */
-  if (service_nts)
-  {
+  if (use_srv_lookup) {
     int write_idx;
     getdns_dict *extensions = NULL, *response = NULL;
     getdns_list *service_addresses = NULL;
@@ -115,11 +114,9 @@ DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_add
     size_t returned_addresses;
     size_t domain_name_len;
 
-    if (dns_context == NULL)
-    {
+    if (dns_context == NULL) {
       reinit();
-      if (dns_context == NULL)
-      {
+      if (dns_context == NULL) {
 #ifdef FORCE_DNSRETRY
         return DNS_TryAgain;
 #else
@@ -139,8 +136,7 @@ DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_add
     getdns_status = getdns_service_sync(dns_context, service_domain, extensions, &response);
     free(service_domain);
     getdns_dict_destroy(extensions);
-    if (getdns_status)
-    {
+    if (getdns_status) {
 #ifdef FORCE_DNSRETRY
       return DNS_TryAgain;
 #else
@@ -155,8 +151,7 @@ DNS_Name2IPAddress(const char *name, DNS_AddressLookupResult *addrs, int max_add
 
     write_idx = 0;
 
-    for (i = 0; i < returned_addresses; i++)
-    {
+    for (i = 0; i < returned_addresses; i++) {
       if (getdns_list_get_dict(service_addresses, i, &service_entry))
         LOG_FATAL("Unrecoverable error calling getdns.");
       if (getdns_dict_get_bindata(service_entry, "domain_name", &raw_data))

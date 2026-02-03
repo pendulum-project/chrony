@@ -198,27 +198,27 @@ set_ntp_address(NNC_Instance inst, NTP_Remote_Address *negotiated_address)
   DNS_SockAddrLookupResult new_address;
 
   old_address = inst->ntp_address;
-  new_address.ip.service_name[0] = 0;
-  new_address.ip.ip = negotiated_address->ip_addr;
+  new_address.ip_addr.service_name[0] = 0;
+  new_address.ip_addr.ip = negotiated_address->ip_addr;
   new_address.port = negotiated_address->port;
 
-  if (new_address.ip.ip.family == IPADDR_UNSPEC)
-    new_address.ip.ip = inst->nts_address.ip_addr;
+  if (new_address.ip_addr.ip.family == IPADDR_UNSPEC)
+    new_address.ip_addr.ip = inst->nts_address.ip_addr;
   if (new_address.port == 0)
     new_address.port = inst->default_ntp_port;
 
-  if (UTI_CompareIPs(&old_address.ip_addr, &new_address.ip.ip, NULL) == 0 &&
+  if (UTI_CompareIPs(&old_address.ip_addr, &new_address.ip_addr.ip, NULL) == 0 &&
       old_address.port == new_address.port)
     /* Nothing to do */
     return 1;
 
   if (NSR_UpdateSourceNtpAddress(&old_address, &new_address) != NSR_Success) {
     LOG(LOGS_ERR, "Could not change %s to negotiated address %s",
-        UTI_IPToString(&old_address.ip_addr), UTI_IPToString(&new_address.ip.ip));
+        UTI_IPToString(&old_address.ip_addr), UTI_IPToString(&new_address.ip_addr.ip));
     return 0;
   }
 
-  inst->ntp_address.ip_addr = new_address.ip.ip;
+  inst->ntp_address.ip_addr = new_address.ip_addr.ip;
   inst->ntp_address.port = new_address.port;
 
   return 1;
