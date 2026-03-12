@@ -80,8 +80,8 @@ update_random_address(NTP_Remote_Address *addr, int rand_bits)
   DNS_SockAddrLookupResult new_addr;
   NSR_Status status;
 
-  TST_GetRandomAddress(&new_addr.ip.ip, IPADDR_UNSPEC, rand_bits);
-  new_addr.ip.service_name[0] = 0;
+  TST_GetRandomAddress(&new_addr.ip_addr.ip, IPADDR_UNSPEC, rand_bits);
+  new_addr.ip_addr.service_name[0] = 0;
   new_addr.port = random() % 1024;
 
   status = NSR_UpdateSourceNtpAddress(addr, &new_addr);
@@ -102,7 +102,7 @@ change_remote_address(NCR_Instance inst, DNS_SockAddrLookupResult *remote_addr, 
   NTP_Remote_Address rem_addr;
   int update = !ntp_only && random() % 4 == 0, update_pos = random() % 2, r = 0;
 
-  rem_addr.ip_addr = remote_addr->ip.ip;
+  rem_addr.ip_addr = remote_addr->ip_addr.ip;
   rem_addr.port = remote_addr->port;
 
   TEST_CHECK(record_lock);
