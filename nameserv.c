@@ -189,6 +189,8 @@ srv_lookup(const char *name, DNS_AddressLookupResult *addrs, int max_addrs) {
     }
     free(service_domain);
   }
+
+  return DNS_Success;
 }
 #endif
 
