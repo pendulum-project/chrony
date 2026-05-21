@@ -981,7 +981,9 @@ EXTRA_CLI_OBJECTS="$EXTRA_CLI_OBJECTS $HASH_OBJ"
 LIBS="$LIBS $HASH_LINK"
 
 if [ $feat_srv = "1" ] && [ $try_getdns = "1" ]; then
-  if test_code 'getdns' 'getdns/getdns.h' '' '-lgetdns' '
+  test_cflags="`pkg_config --cflags getdns`"
+  test_link="`pkg_config --libs getdns`"
+  if test_code 'getdns' 'getdns/getdns.h' "$test_cflags" "$test_link" '
     getdns_context *context;
     getdns_context_create(&context, 1);'
   then
