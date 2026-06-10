@@ -61,6 +61,18 @@ extern void NKSN_DestroyInstance(NKSN_Instance inst);
 extern int NKSN_StartSession(NKSN_Instance inst, int sock_fd, const char *label,
                              NKSN_Credentials credentials, double timeout);
 
+/* Mark a server session to be kept alive after sending the response. The
+   mark is reset after sending the next response. */
+extern void NKSN_KeepAlive(NKSN_Instance inst);
+
+/* Mark the session as longterm. This does not alter behaviour in this module
+   but can be used to check the status of a connection in the server. The mark
+   gets reset on starting of the session. */
+extern void NKSN_MarkLongterm(NKSN_Instance inst);
+
+/* Add a handler function to be run when the session stops */
+extern void NKSN_SetStopHandler(NKSN_Instance inst, NKSN_MessageHandler handler);
+
 /* Begin an NTS-KE message.  A request should be made right after starting
    the session and response should be made in the message handler. */
 extern void NKSN_BeginMessage(NKSN_Instance inst);
@@ -85,6 +97,9 @@ extern int NKSN_GetKeys(NKSN_Instance inst, SIV_Algorithm algorithm,
 
 /* Check if the session has stopped */
 extern int NKSN_IsStopped(NKSN_Instance inst);
+
+/* Check if the session has been marked longterm */
+extern int NKSN_IsLongterm(NKSN_Instance inst);
 
 /* Stop the session */
 extern void NKSN_StopSession(NKSN_Instance inst);
